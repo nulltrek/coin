@@ -36,6 +36,7 @@ dependencies = [
  "ed25519-dalek",
  "rand",
  "ring",
+ "sha2",
 ]
 
 [[package]]
