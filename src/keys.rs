@@ -37,7 +37,10 @@ impl KeyPair {
         self.private_key().to_vec()
     }
 
-    pub fn deserialize(key: Vec<u8>) -> Result<KeyPair, DeserializeError> {
+    pub fn deserialize(key: &Vec<u8>) -> Result<KeyPair, DeserializeError> {
+        if key.len() != 32 {
+            return Err(DeserializeError);
+        }
         let result: Result<&[u8; 32], core::array::TryFromSliceError> =
             key.as_slice()[0..32].try_into();
         match result {
@@ -56,5 +59,33 @@ mod tests {
         let key = KeyPair::new();
         let signature = key.sign(b"test");
         assert_eq!(key.verify(b"test", &signature), true);
+    }
+
+    #[test]
+    fn serialize() {
+        let bytes = vec![0u8; 32];
+        let pair = KeyPair::deserialize(&bytes).unwrap();
+        assert_eq!(pair.serialize(), bytes);
+    }
+
+    #[test]
+    fn deserialize() {
+        let bytes = vec![0u8; 32];
+        assert!(match KeyPair::deserialize(&bytes) {
+            Ok(_) => true,
+            Err(_) => false,
+        });
+
+        let bytes = vec![0u8; 31];
+        assert!(match KeyPair::deserialize(&bytes) {
+            Ok(_) => false,
+            Err(_) => true,
+        });
+
+        let bytes = vec![0u8; 34];
+        assert!(match KeyPair::deserialize(&bytes) {
+            Ok(_) => false,
+            Err(_) => true,
+        });
     }
 }
