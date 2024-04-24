@@ -18,8 +18,8 @@ pub struct OutPoint {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TransactionData {
-    i: Vec<InPoint>,
-    o: Vec<OutPoint>,
+    inputs: Vec<InPoint>,
+    outputs: Vec<OutPoint>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -51,13 +51,13 @@ mod tests {
     fn hashing_equality() {
         let key = KeyPair::new();
         let tx_data_1 = TransactionData {
-            i: vec!(InPoint{ hash: Hash::new(b"test"), index: 0, signature: key.sign(b"test")}),
-            o: vec!(OutPoint{value: 1, pubkey: key.public_key() })
+            inputs: vec!(InPoint{ hash: Hash::new(b"test"), index: 0, signature: key.sign(b"test")}),
+            outputs: vec!(OutPoint{value: 1, pubkey: key.public_key() })
         };
 
         let tx_data_2 = TransactionData {
-            i: vec!(InPoint{ hash: Hash::new(b"test"), index: 0, signature: key.sign(b"test")}),
-            o: vec!(OutPoint{value: 1, pubkey: key.public_key() })
+            inputs: vec!(InPoint{ hash: Hash::new(b"test"), index: 0, signature: key.sign(b"test")}),
+            outputs: vec!(OutPoint{value: 1, pubkey: key.public_key() })
         };
 
         let tx1 = Transaction::new(&tx_data_1);
