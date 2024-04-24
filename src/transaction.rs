@@ -1,4 +1,4 @@
-use crate::keys::{Signature, KeyPair, PublicKey};
+use crate::keys::{Signature, PublicKey};
 use crate::hash::Hash;
 use serde::{Serialize, Deserialize};
 use bincode;
@@ -46,6 +46,7 @@ pub struct Utxo {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::keys::KeyPair;
 
     #[test]
     fn hashing_equality() {
