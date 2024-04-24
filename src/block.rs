@@ -1,6 +1,5 @@
 use crate::hash::Hash;
-use crate::transaction::{Transaction, TransactionData, InPoint, OutPoint};
-use crate::keys::KeyPair;
+use crate::transaction::Transaction;
 use serde::{Serialize, Deserialize};
 use bincode;
 
@@ -43,6 +42,8 @@ impl Block {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::transaction::{TransactionData, InPoint, OutPoint};
+    use crate::keys::KeyPair;
 
     #[test]
     fn hashing_equality() {
