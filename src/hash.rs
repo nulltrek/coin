@@ -17,8 +17,8 @@ impl Hash {
         }
     }
 
-    pub fn digest(&self) -> [u8; Hash::SIZE] {
-        self.value
+    pub fn digest(&self) -> &[u8; Hash::SIZE] {
+        &self.value
     }
 }
 
@@ -29,7 +29,7 @@ mod tests {
     #[test]
     fn digest() {
         assert_eq!(
-            &Hash::new(b"test").digest(),
+            Hash::new(b"test").digest(),
             &[
                 159, 134, 208, 129, 136, 76, 125, 101, 154, 47, 234, 160, 197, 90, 208, 21, 163,
                 191, 79, 27, 43, 11, 130, 44, 209, 93, 108, 21, 176, 240, 10, 8
