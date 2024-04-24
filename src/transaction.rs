@@ -5,24 +5,24 @@ use bincode;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InPoint {
-    hash: Hash,
-    index: u32,
-    signature: Signature,
+    pub hash: Hash,
+    pub index: u32,
+    pub signature: Signature,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OutPoint {
-    value: u64,
-    pubkey: PublicKey,
+    pub value: u64,
+    pub pubkey: PublicKey,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TransactionData {
-    inputs: Vec<InPoint>,
-    outputs: Vec<OutPoint>,
+    pub inputs: Vec<InPoint>,
+    pub outputs: Vec<OutPoint>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Transaction {
     pub hash: Hash,
     pub data: TransactionData,
