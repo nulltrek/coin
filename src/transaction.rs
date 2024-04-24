@@ -36,6 +36,11 @@ impl Transaction {
             data: tx_data.clone(),
         }
     }
+
+    pub fn is_valid(&self) -> bool {
+        let bytes: Vec<u8> = bincode::serialize(&self.data).unwrap();
+        return Hash::new(bytes.as_slice()).digest() == self.hash.digest();
+    }
 }
 
 pub struct Utxo {
@@ -65,5 +70,42 @@ mod tests {
         let tx2 = Transaction::new(&tx_data_2);
 
         assert_eq!(tx1.hash, tx2.hash)
+    }
+
+    #[test]
+    fn validation() {
+        let key = KeyPair::new();
+        let tx_data = TransactionData {
+            inputs: vec!(InPoint{ hash: Hash::new(b"test"), index: 0, signature: key.sign(b"test")}),
+            outputs: vec!(OutPoint{value: 1, pubkey: key.public_key() })
+        };
+
+        let tx_1 = Transaction::new(&tx_data);
+        assert!(tx_1.is_valid());
+
+        let tx_2 = Transaction {
+            hash: Hash::new(b"test"),
+            data: tx_data.clone(),
+        };
+        assert!(!tx_2.is_valid());
+    }
+
+    #[test]
+    fn unserialize_validation() {
+        let key = KeyPair::new();
+        let tx_data = TransactionData {
+            inputs: vec!(InPoint{ hash: Hash::new(b"test"), index: 0, signature: key.sign(b"test")}),
+            outputs: vec!(OutPoint{value: 1, pubkey: key.public_key() })
+        };
+
+        let tx = Transaction {
+            hash: Hash::new(b"test"),
+            data: tx_data.clone(),
+        };
+
+        let bytes: Vec<u8> = bincode::serialize(&tx).unwrap();
+
+        let deserialized_tx: Transaction = bincode::deserialize(&bytes).unwrap();
+        assert!(!deserialized_tx.is_valid());
     }
 }
