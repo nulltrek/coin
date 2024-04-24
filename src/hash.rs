@@ -1,7 +1,9 @@
 use sha2::{Digest, Sha256};
+use serde::{Serialize, Deserialize};
 
 // let hash = Sha256::digest(b"my message");
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Hash {
     value: [u8; Hash::SIZE],
 }
