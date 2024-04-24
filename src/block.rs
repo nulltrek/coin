@@ -56,10 +56,33 @@ mod tests {
             Transaction::new(&TransactionData {
                 inputs: vec!(InPoint{ hash: Hash::new(b"test_2"), index: 0, signature: key.sign(b"test_2")}),
                 outputs: vec!(OutPoint{value: 1, pubkey: key.public_key() })
-            })];
+            }),
+        ];
 
         let top_hash = Hash::new(vec!(txs[0].hash.digest().to_vec(), txs[1].hash.digest().to_vec()).concat().as_slice());
         let block_data = BlockData::new(Hash::new(b"test"), 0, txs);
         assert_eq!(block_data.top_hash, top_hash)
+    }
+
+    #[test]
+    fn hashing_inequality() {
+        let key = KeyPair::new();
+
+        let tx_1 = Transaction::new(&TransactionData {
+            inputs: vec!(InPoint{ hash: Hash::new(b"test_1"), index: 0, signature: key.sign(b"test_1")}),
+            outputs: vec!(OutPoint{value: 1, pubkey: key.public_key() })
+        });
+        let tx_2 = Transaction::new(&TransactionData {
+            inputs: vec!(InPoint{ hash: Hash::new(b"test_2"), index: 0, signature: key.sign(b"test_2")}),
+            outputs: vec!(OutPoint{value: 1, pubkey: key.public_key() })
+        });
+
+        let txs_1 = vec![tx_1.clone(), tx_2.clone()];
+        let block_data_1 = BlockData::new(Hash::new(b"test"), 0, txs_1);
+
+        let txs_2 = vec![tx_2.clone(), tx_1.clone()];
+        let block_data_2 = BlockData::new(Hash::new(b"test"), 0, txs_2);
+
+        assert_ne!(block_data_1.top_hash, block_data_2.top_hash)
     }
 }
