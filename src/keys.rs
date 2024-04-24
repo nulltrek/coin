@@ -5,6 +5,7 @@ use serde::{Serialize, Deserialize};
 
 pub type PrivateKey = [u8; SECRET_KEY_LENGTH];
 pub type PublicKey = [u8; SECRET_KEY_LENGTH];
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct KeyPair(SigningKey);
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
