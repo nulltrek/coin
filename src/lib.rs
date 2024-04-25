@@ -3,3 +3,4 @@ pub mod hash;
 pub mod keys;
 pub mod transaction;
 pub mod block;
+pub mod blockchain;

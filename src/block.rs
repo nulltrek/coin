@@ -5,17 +5,17 @@ use bincode;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BlockData{
-    prev_hash: Hash,
-    nonce: u32,
-    top_hash: Hash,
-    transactions: Vec<Transaction>,
+    pub prev_hash: Hash,
+    pub nonce: u32,
+    pub top_hash: Hash,
+    pub transactions: Vec<Transaction>,
 }
 
 impl BlockData {
-    pub fn new(prev_hash: Hash, nonce: u32, transactions: Vec<Transaction>) -> BlockData {
+    pub fn new(prev_hash: &Hash, nonce: u32, transactions: Vec<Transaction>) -> BlockData {
         let digest_list: Vec<Vec<u8>> = transactions.iter().map(|val| val.hash.digest().to_vec()).collect();
         BlockData {
-            prev_hash,
+            prev_hash: prev_hash.clone(),
             nonce,
             top_hash: Hash::new(&digest_list.concat().as_slice()),
             transactions,
@@ -23,10 +23,10 @@ impl BlockData {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Block {
-    hash: Hash,
-    data: BlockData,
+    pub hash: Hash,
+    pub data: BlockData,
 }
 
 impl Block {
@@ -60,7 +60,7 @@ mod tests {
         ];
 
         let top_hash = Hash::new(vec!(txs[0].hash.digest().to_vec(), txs[1].hash.digest().to_vec()).concat().as_slice());
-        let block_data = BlockData::new(Hash::new(b"test"), 0, txs);
+        let block_data = BlockData::new(&Hash::new(b"test"), 0, txs);
         assert_eq!(block_data.top_hash, top_hash)
     }
 
@@ -78,10 +78,10 @@ mod tests {
         });
 
         let txs_1 = vec![tx_1.clone(), tx_2.clone()];
-        let block_data_1 = BlockData::new(Hash::new(b"test"), 0, txs_1);
+        let block_data_1 = BlockData::new(&Hash::new(b"test"), 0, txs_1);
 
         let txs_2 = vec![tx_2.clone(), tx_1.clone()];
-        let block_data_2 = BlockData::new(Hash::new(b"test"), 0, txs_2);
+        let block_data_2 = BlockData::new(&Hash::new(b"test"), 0, txs_2);
 
         assert_ne!(block_data_1.top_hash, block_data_2.top_hash)
     }
