@@ -1,6 +1,5 @@
-use crate::errors::DeserializeError;
 use crate::hash::Hash;
-use crate::io::{FileIO, IntoBytes};
+use crate::io::{ByteIO, FileIO};
 use crate::transaction::Transaction;
 use serde::{Deserialize, Serialize};
 
@@ -43,18 +42,7 @@ impl Block {
     }
 }
 
-impl TryFrom<&[u8]> for Block {
-    type Error = DeserializeError;
-
-    fn try_from(bytes: &[u8]) -> Result<Block, DeserializeError> {
-        match bincode::deserialize(&bytes) {
-            Ok(tx) => Ok(tx),
-            Err(_) => Err(DeserializeError),
-        }
-    }
-}
-
-impl IntoBytes for Block {}
+impl ByteIO for Block {}
 
 impl FileIO for Block {}
 
