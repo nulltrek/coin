@@ -62,11 +62,7 @@ impl TryFrom<&[u8]> for Blockchain {
     }
 }
 
-impl IntoBytes for Blockchain {
-    fn into_bytes(&self) -> Vec<u8> {
-        bincode::serialize(self).unwrap()
-    }
-}
+impl IntoBytes for Blockchain {}
 
 impl FileIO for Blockchain {}
 

@@ -1,30 +1,29 @@
 use crate::errors::DeserializeError;
 use crate::hash::Hash;
-use crate::io::IntoBytes;
+use crate::io::{FileIO, IntoBytes};
 use crate::keys::{PublicKey, Signature};
-use bincode;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct InPoint {
     pub hash: Hash,
     pub index: u32,
     pub signature: Signature,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct OutPoint {
     pub value: u64,
     pub pubkey: PublicKey,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct TransactionData {
     pub inputs: Vec<InPoint>,
     pub outputs: Vec<OutPoint>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Transaction {
     pub hash: Hash,
     pub data: TransactionData,
@@ -56,11 +55,9 @@ impl TryFrom<&[u8]> for Transaction {
     }
 }
 
-impl IntoBytes for Transaction {
-    fn into_bytes(&self) -> Vec<u8> {
-        bincode::serialize(&self).unwrap()
-    }
-}
+impl IntoBytes for Transaction {}
+
+impl FileIO for Transaction {}
 
 pub struct Utxo {
     hash: Hash,
@@ -71,6 +68,7 @@ pub struct Utxo {
 mod tests {
     use super::*;
     use crate::keys::KeyPair;
+    use tempfile::*;
 
     #[test]
     fn hashing_equality() {
@@ -154,5 +152,35 @@ mod tests {
 
         let deserialized_tx = Transaction::try_from(bytes.as_slice()).unwrap();
         assert!(!deserialized_tx.is_valid());
+    }
+
+    #[test]
+    fn file_io() {
+        let key = KeyPair::new();
+
+        let original = Transaction {
+            hash: Hash::new(b"test"),
+            data: TransactionData {
+                inputs: vec![InPoint {
+                    hash: Hash::new(b"test"),
+                    index: 0,
+                    signature: key.sign(b"test"),
+                }],
+                outputs: vec![OutPoint {
+                    value: 1,
+                    pubkey: key.public_key(),
+                }],
+            },
+        };
+
+        let temp_file = NamedTempFile::new().unwrap();
+
+        let mut out_file = temp_file.reopen().unwrap();
+        let result = original.to_file(&mut out_file);
+        assert!(result.is_ok());
+
+        let mut in_file = temp_file.reopen().unwrap();
+        let deserialized = Transaction::from_file(&mut in_file).unwrap();
+        assert_eq!(original, deserialized);
     }
 }
