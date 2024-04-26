@@ -1,6 +1,5 @@
-use crate::errors::DeserializeError;
 use crate::hash::Hash;
-use crate::io::{FileIO, IntoBytes};
+use crate::io::{ByteIO, FileIO};
 use crate::keys::{PublicKey, Signature};
 use serde::{Deserialize, Serialize};
 
@@ -44,18 +43,7 @@ impl Transaction {
     }
 }
 
-impl TryFrom<&[u8]> for Transaction {
-    type Error = DeserializeError;
-
-    fn try_from(bytes: &[u8]) -> Result<Transaction, DeserializeError> {
-        match bincode::deserialize(&bytes) {
-            Ok(tx) => Ok(tx),
-            Err(_) => Err(DeserializeError),
-        }
-    }
-}
-
-impl IntoBytes for Transaction {}
+impl ByteIO for Transaction {}
 
 impl FileIO for Transaction {}
 
@@ -150,7 +138,7 @@ mod tests {
 
         let bytes = tx.into_bytes();
 
-        let deserialized_tx = Transaction::try_from(bytes.as_slice()).unwrap();
+        let deserialized_tx = Transaction::from_bytes(bytes.as_slice()).unwrap();
         assert!(!deserialized_tx.is_valid());
     }
 

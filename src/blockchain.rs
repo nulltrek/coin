@@ -1,7 +1,6 @@
 use crate::block::Block;
-use crate::errors::DeserializeError;
 use crate::hash::Hash;
-use crate::io::{FileIO, IntoBytes};
+use crate::io::{ByteIO, FileIO};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
@@ -51,18 +50,7 @@ impl Blockchain {
     }
 }
 
-impl TryFrom<&[u8]> for Blockchain {
-    type Error = DeserializeError;
-
-    fn try_from(bytes: &[u8]) -> Result<Blockchain, DeserializeError> {
-        match bincode::deserialize(&bytes) {
-            Ok(tx) => Ok(tx),
-            Err(_) => Err(DeserializeError),
-        }
-    }
-}
-
-impl IntoBytes for Blockchain {}
+impl ByteIO for Blockchain {}
 
 impl FileIO for Blockchain {}
 

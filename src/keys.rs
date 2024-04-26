@@ -1,5 +1,5 @@
 use crate::errors::DeserializeError;
-use crate::io::{FileIO, IntoBytes};
+use crate::io::{ByteIO, FileIO};
 use ed25519_dalek::{Signature as DalekSignature, Signer, SigningKey, SECRET_KEY_LENGTH};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
@@ -38,10 +38,8 @@ impl KeyPair {
     }
 }
 
-impl TryFrom<&[u8]> for KeyPair {
-    type Error = DeserializeError;
-
-    fn try_from(bytes: &[u8]) -> Result<KeyPair, DeserializeError> {
+impl ByteIO for KeyPair {
+    fn from_bytes(bytes: &[u8]) -> Result<KeyPair, DeserializeError> {
         if bytes.len() != 32 {
             return Err(DeserializeError);
         }
@@ -51,9 +49,7 @@ impl TryFrom<&[u8]> for KeyPair {
             Err(_) => Err(DeserializeError),
         }
     }
-}
 
-impl IntoBytes for KeyPair {
     fn into_bytes(&self) -> Vec<u8> {
         Vec::from(self.private_key())
     }
@@ -76,7 +72,7 @@ mod tests {
     #[test]
     fn serialize() {
         let bytes = [0u8; 32];
-        let pair = KeyPair::try_from(bytes.as_slice()).unwrap();
+        let pair = KeyPair::from_bytes(bytes.as_slice()).unwrap();
         let serialized = pair.into_bytes();
         assert_eq!(serialized, bytes);
     }
@@ -84,19 +80,19 @@ mod tests {
     #[test]
     fn deserialize() {
         let bytes = vec![0u8; 32];
-        assert!(match KeyPair::try_from(bytes.as_slice()) {
+        assert!(match KeyPair::from_bytes(bytes.as_slice()) {
             Ok(_) => true,
             Err(_) => false,
         });
 
         let bytes = vec![0u8; 31];
-        assert!(match KeyPair::try_from(bytes.as_slice()) {
+        assert!(match KeyPair::from_bytes(bytes.as_slice()) {
             Ok(_) => false,
             Err(_) => true,
         });
 
         let bytes = vec![0u8; 34];
-        assert!(match KeyPair::try_from(bytes.as_slice()) {
+        assert!(match KeyPair::from_bytes(bytes.as_slice()) {
             Ok(_) => false,
             Err(_) => true,
         });
