@@ -1,6 +1,8 @@
 use crate::block::Block;
+use crate::errors::DeserializeError;
 use crate::hash::Hash;
-use serde::{Serialize, Deserialize};
+use crate::io::{FileIO, IntoBytes};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub struct BlockchainError {
@@ -9,7 +11,9 @@ pub struct BlockchainError {
 
 impl BlockchainError {
     fn new(message: &str) -> BlockchainError {
-        return BlockchainError{ message: Some(message.to_string()) };
+        return BlockchainError {
+            message: Some(message.to_string()),
+        };
     }
 }
 
@@ -20,12 +24,12 @@ pub struct Blockchain {
 
 impl Blockchain {
     pub fn new(genesis: &Block) -> Blockchain {
-        Blockchain{
+        Blockchain {
             list: vec![genesis.clone()],
         }
     }
 
-    pub fn height(&self) -> usize{
+    pub fn height(&self) -> usize {
         return self.list.len();
     }
 
@@ -40,19 +44,38 @@ impl Blockchain {
     pub fn query(&self, hash: &Hash) -> Option<(usize, &Block)> {
         for (i, block) in self.list.iter().enumerate().rev() {
             if block.hash == *hash {
-                return Some((i, &block))
+                return Some((i, &block));
             }
         }
         return None;
     }
 }
 
+impl TryFrom<&[u8]> for Blockchain {
+    type Error = DeserializeError;
+
+    fn try_from(bytes: &[u8]) -> Result<Blockchain, DeserializeError> {
+        match bincode::deserialize(&bytes) {
+            Ok(tx) => Ok(tx),
+            Err(_) => Err(DeserializeError),
+        }
+    }
+}
+
+impl IntoBytes for Blockchain {
+    fn into_bytes(&self) -> Vec<u8> {
+        bincode::serialize(self).unwrap()
+    }
+}
+
+impl FileIO for Blockchain {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::keys::KeyPair;
-    use crate::transaction::{Transaction, TransactionData, InPoint, OutPoint};
     use crate::block::{Block, BlockData};
+    use crate::keys::KeyPair;
+    use crate::transaction::{InPoint, OutPoint, Transaction, TransactionData};
 
     struct BlockGen {
         valid: bool,
@@ -63,7 +86,7 @@ mod tests {
 
     impl BlockGen {
         fn new(valid: bool) -> BlockGen {
-            BlockGen{
+            BlockGen {
                 valid: valid,
                 keys: KeyPair::new(),
                 index: 0,
@@ -77,15 +100,26 @@ mod tests {
 
         fn next(&mut self) -> Option<Self::Item> {
             let name = format!("block-{}", self.index).into_bytes();
-            let prev_hash = if self.valid { self.prev_hash.clone() } else { Hash::new(&name) };
-            let block = Block::new(
-                &BlockData::new(&prev_hash, 0, vec![
-                    Transaction::new(&TransactionData {
-                        inputs: vec!(InPoint{ hash: Hash::new(&name), index: 0, signature: self.keys.sign(&name)}),
-                        outputs: vec!(OutPoint{value: 1, pubkey: self.keys.public_key() })
-                    })
-                ])
-            );
+            let prev_hash = if self.valid {
+                self.prev_hash.clone()
+            } else {
+                Hash::new(&name)
+            };
+            let block = Block::new(&BlockData::new(
+                &prev_hash,
+                0,
+                vec![Transaction::new(&TransactionData {
+                    inputs: vec![InPoint {
+                        hash: Hash::new(&name),
+                        index: 0,
+                        signature: self.keys.sign(&name),
+                    }],
+                    outputs: vec![OutPoint {
+                        value: 1,
+                        pubkey: self.keys.public_key(),
+                    }],
+                })],
+            ));
             self.index += 1;
             self.prev_hash = block.hash.clone();
             Some(block)
@@ -148,7 +182,6 @@ mod tests {
             let (height, _) = chain.query(&hash).unwrap();
             assert_eq!(height, index);
         }
-
 
         let result = chain.query(&Hash::new(b"nothing"));
         assert!(result.is_none());

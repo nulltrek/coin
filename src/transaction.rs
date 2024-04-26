@@ -1,7 +1,9 @@
-use crate::keys::{Signature, PublicKey};
+use crate::errors::DeserializeError;
 use crate::hash::Hash;
-use serde::{Serialize, Deserialize};
+use crate::io::IntoBytes;
+use crate::keys::{PublicKey, Signature};
 use bincode;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InPoint {
@@ -43,6 +45,23 @@ impl Transaction {
     }
 }
 
+impl TryFrom<&[u8]> for Transaction {
+    type Error = DeserializeError;
+
+    fn try_from(bytes: &[u8]) -> Result<Transaction, DeserializeError> {
+        match bincode::deserialize(&bytes) {
+            Ok(tx) => Ok(tx),
+            Err(_) => Err(DeserializeError),
+        }
+    }
+}
+
+impl IntoBytes for Transaction {
+    fn into_bytes(&self) -> Vec<u8> {
+        bincode::serialize(&self).unwrap()
+    }
+}
+
 pub struct Utxo {
     hash: Hash,
     output: u32,
@@ -57,13 +76,27 @@ mod tests {
     fn hashing_equality() {
         let key = KeyPair::new();
         let tx_data_1 = TransactionData {
-            inputs: vec!(InPoint{ hash: Hash::new(b"test"), index: 0, signature: key.sign(b"test")}),
-            outputs: vec!(OutPoint{value: 1, pubkey: key.public_key() })
+            inputs: vec![InPoint {
+                hash: Hash::new(b"test"),
+                index: 0,
+                signature: key.sign(b"test"),
+            }],
+            outputs: vec![OutPoint {
+                value: 1,
+                pubkey: key.public_key(),
+            }],
         };
 
         let tx_data_2 = TransactionData {
-            inputs: vec!(InPoint{ hash: Hash::new(b"test"), index: 0, signature: key.sign(b"test")}),
-            outputs: vec!(OutPoint{value: 1, pubkey: key.public_key() })
+            inputs: vec![InPoint {
+                hash: Hash::new(b"test"),
+                index: 0,
+                signature: key.sign(b"test"),
+            }],
+            outputs: vec![OutPoint {
+                value: 1,
+                pubkey: key.public_key(),
+            }],
         };
 
         let tx1 = Transaction::new(&tx_data_1);
@@ -76,8 +109,15 @@ mod tests {
     fn validation() {
         let key = KeyPair::new();
         let tx_data = TransactionData {
-            inputs: vec!(InPoint{ hash: Hash::new(b"test"), index: 0, signature: key.sign(b"test")}),
-            outputs: vec!(OutPoint{value: 1, pubkey: key.public_key() })
+            inputs: vec![InPoint {
+                hash: Hash::new(b"test"),
+                index: 0,
+                signature: key.sign(b"test"),
+            }],
+            outputs: vec![OutPoint {
+                value: 1,
+                pubkey: key.public_key(),
+            }],
         };
 
         let tx_1 = Transaction::new(&tx_data);
@@ -94,8 +134,15 @@ mod tests {
     fn unserialize_validation() {
         let key = KeyPair::new();
         let tx_data = TransactionData {
-            inputs: vec!(InPoint{ hash: Hash::new(b"test"), index: 0, signature: key.sign(b"test")}),
-            outputs: vec!(OutPoint{value: 1, pubkey: key.public_key() })
+            inputs: vec![InPoint {
+                hash: Hash::new(b"test"),
+                index: 0,
+                signature: key.sign(b"test"),
+            }],
+            outputs: vec![OutPoint {
+                value: 1,
+                pubkey: key.public_key(),
+            }],
         };
 
         let tx = Transaction {
@@ -103,9 +150,9 @@ mod tests {
             data: tx_data.clone(),
         };
 
-        let bytes: Vec<u8> = bincode::serialize(&tx).unwrap();
+        let bytes = tx.into_bytes();
 
-        let deserialized_tx: Transaction = bincode::deserialize(&bytes).unwrap();
+        let deserialized_tx = Transaction::try_from(bytes.as_slice()).unwrap();
         assert!(!deserialized_tx.is_valid());
     }
 }

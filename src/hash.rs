@@ -1,5 +1,5 @@
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use serde::{Serialize, Deserialize};
 
 // let hash = Sha256::digest(b"my message");
 

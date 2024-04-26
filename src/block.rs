@@ -1,10 +1,10 @@
 use crate::hash::Hash;
 use crate::transaction::Transaction;
-use serde::{Serialize, Deserialize};
 use bincode;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct BlockData{
+pub struct BlockData {
     pub prev_hash: Hash,
     pub nonce: u32,
     pub top_hash: Hash,
@@ -13,7 +13,10 @@ pub struct BlockData{
 
 impl BlockData {
     pub fn new(prev_hash: &Hash, nonce: u32, transactions: Vec<Transaction>) -> BlockData {
-        let digest_list: Vec<Vec<u8>> = transactions.iter().map(|val| val.hash.digest().to_vec()).collect();
+        let digest_list: Vec<Vec<u8>> = transactions
+            .iter()
+            .map(|val| val.hash.digest().to_vec())
+            .collect();
         BlockData {
             prev_hash: prev_hash.clone(),
             nonce,
@@ -42,24 +45,42 @@ impl Block {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::transaction::{TransactionData, InPoint, OutPoint};
     use crate::keys::KeyPair;
+    use crate::transaction::{InPoint, OutPoint, TransactionData};
 
     #[test]
     fn hashing_equality() {
         let key = KeyPair::new();
         let txs = vec![
             Transaction::new(&TransactionData {
-                inputs: vec!(InPoint{ hash: Hash::new(b"test_1"), index: 0, signature: key.sign(b"test_1")}),
-                outputs: vec!(OutPoint{value: 1, pubkey: key.public_key() })
+                inputs: vec![InPoint {
+                    hash: Hash::new(b"test_1"),
+                    index: 0,
+                    signature: key.sign(b"test_1"),
+                }],
+                outputs: vec![OutPoint {
+                    value: 1,
+                    pubkey: key.public_key(),
+                }],
             }),
             Transaction::new(&TransactionData {
-                inputs: vec!(InPoint{ hash: Hash::new(b"test_2"), index: 0, signature: key.sign(b"test_2")}),
-                outputs: vec!(OutPoint{value: 1, pubkey: key.public_key() })
+                inputs: vec![InPoint {
+                    hash: Hash::new(b"test_2"),
+                    index: 0,
+                    signature: key.sign(b"test_2"),
+                }],
+                outputs: vec![OutPoint {
+                    value: 1,
+                    pubkey: key.public_key(),
+                }],
             }),
         ];
 
-        let top_hash = Hash::new(vec!(txs[0].hash.digest().to_vec(), txs[1].hash.digest().to_vec()).concat().as_slice());
+        let top_hash = Hash::new(
+            vec![txs[0].hash.digest().to_vec(), txs[1].hash.digest().to_vec()]
+                .concat()
+                .as_slice(),
+        );
         let block_data = BlockData::new(&Hash::new(b"test"), 0, txs);
         assert_eq!(block_data.top_hash, top_hash)
     }
@@ -69,12 +90,26 @@ mod tests {
         let key = KeyPair::new();
 
         let tx_1 = Transaction::new(&TransactionData {
-            inputs: vec!(InPoint{ hash: Hash::new(b"test_1"), index: 0, signature: key.sign(b"test_1")}),
-            outputs: vec!(OutPoint{value: 1, pubkey: key.public_key() })
+            inputs: vec![InPoint {
+                hash: Hash::new(b"test_1"),
+                index: 0,
+                signature: key.sign(b"test_1"),
+            }],
+            outputs: vec![OutPoint {
+                value: 1,
+                pubkey: key.public_key(),
+            }],
         });
         let tx_2 = Transaction::new(&TransactionData {
-            inputs: vec!(InPoint{ hash: Hash::new(b"test_2"), index: 0, signature: key.sign(b"test_2")}),
-            outputs: vec!(OutPoint{value: 1, pubkey: key.public_key() })
+            inputs: vec![InPoint {
+                hash: Hash::new(b"test_2"),
+                index: 0,
+                signature: key.sign(b"test_2"),
+            }],
+            outputs: vec![OutPoint {
+                value: 1,
+                pubkey: key.public_key(),
+            }],
         });
 
         let txs_1 = vec![tx_1.clone(), tx_2.clone()];

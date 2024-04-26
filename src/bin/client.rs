@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand};
+use coin::io::FileIO;
 use coin::keys::KeyPair;
-use std::path::Path;
 use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::path::Path;
 
 #[derive(Parser)]
 #[command(name = "Coin")]
@@ -27,11 +27,11 @@ fn main() {
             let path = Path::new(&file_name);
 
             match File::create_new(path) {
-                Ok(file) => {
-                    let mut buf_writer = BufWriter::new(file);
-                    let _ = buf_writer.write(key_pair.serialize().as_slice());
-                    let _ = buf_writer.flush();
-                },
+                Ok(mut file) => {
+                    key_pair
+                        .to_file(&mut file)
+                        .expect("Failed to save keys to file.");
+                }
                 Err(_) => {
                     println!("Failed to open file");
                 }
