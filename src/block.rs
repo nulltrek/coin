@@ -1,9 +1,10 @@
+use crate::errors::DeserializeError;
 use crate::hash::Hash;
+use crate::io::{FileIO, IntoBytes};
 use crate::transaction::Transaction;
-use bincode;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct BlockData {
     pub prev_hash: Hash,
     pub nonce: u32,
@@ -26,7 +27,7 @@ impl BlockData {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Block {
     pub hash: Hash,
     pub data: BlockData,
@@ -42,11 +43,27 @@ impl Block {
     }
 }
 
+impl TryFrom<&[u8]> for Block {
+    type Error = DeserializeError;
+
+    fn try_from(bytes: &[u8]) -> Result<Block, DeserializeError> {
+        match bincode::deserialize(&bytes) {
+            Ok(tx) => Ok(tx),
+            Err(_) => Err(DeserializeError),
+        }
+    }
+}
+
+impl IntoBytes for Block {}
+
+impl FileIO for Block {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::keys::KeyPair;
     use crate::transaction::{InPoint, OutPoint, TransactionData};
+    use tempfile::*;
 
     #[test]
     fn hashing_equality() {
@@ -119,5 +136,36 @@ mod tests {
         let block_data_2 = BlockData::new(&Hash::new(b"test"), 0, txs_2);
 
         assert_ne!(block_data_1.top_hash, block_data_2.top_hash)
+    }
+
+    #[test]
+    fn file_io() {
+        let key = KeyPair::new();
+
+        let original = Block::new(&BlockData::new(
+            &Hash::new(b"test"),
+            0,
+            vec![Transaction::new(&TransactionData {
+                inputs: vec![InPoint {
+                    hash: Hash::new(b"test_1"),
+                    index: 0,
+                    signature: key.sign(b"test_1"),
+                }],
+                outputs: vec![OutPoint {
+                    value: 1,
+                    pubkey: key.public_key(),
+                }],
+            })],
+        ));
+
+        let temp_file = NamedTempFile::new().unwrap();
+
+        let mut out_file = temp_file.reopen().unwrap();
+        let result = original.to_file(&mut out_file);
+        assert!(result.is_ok());
+
+        let mut in_file = temp_file.reopen().unwrap();
+        let deserialized = Block::from_file(&mut in_file).unwrap();
+        assert_eq!(original, deserialized);
     }
 }

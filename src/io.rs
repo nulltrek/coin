@@ -1,8 +1,12 @@
+use bincode;
+use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::{Read, Write};
 
-pub trait IntoBytes {
-    fn into_bytes(&self) -> Vec<u8>;
+pub trait IntoBytes: Serialize + for<'a> Deserialize<'a> {
+    fn into_bytes(&self) -> Vec<u8> {
+        bincode::serialize(self).unwrap()
+    }
 }
 
 #[derive(Debug)]

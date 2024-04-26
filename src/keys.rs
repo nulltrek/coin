@@ -9,7 +9,7 @@ pub type PublicKey = [u8; SECRET_KEY_LENGTH];
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct KeyPair(SigningKey);
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Signature(DalekSignature);
 
 impl KeyPair {
