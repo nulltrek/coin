@@ -23,9 +23,7 @@ impl Hash {
 
 impl Default for Hash {
     fn default() -> Hash {
-        Hash {
-            value: [0; 32],
-        }
+        Hash { value: [0; 32] }
     }
 }
 
