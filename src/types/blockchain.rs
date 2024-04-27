@@ -1,7 +1,7 @@
-use crate::block::Block;
-use crate::hash::Hash;
-use crate::io::{ByteIO, FileIO};
-use crate::transaction::Transaction;
+use crate::types::block::Block;
+use crate::types::hash::Hash;
+use crate::traits::io::{ByteIO, FileIO};
+use crate::types::transaction::Transaction;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
@@ -69,9 +69,9 @@ impl FileIO for Blockchain {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::block::{Block, BlockData};
-    use crate::keys::KeyPair;
-    use crate::transaction::{InPoint, OutPoint, Transaction, TransactionData};
+    use crate::types::block::{Block, BlockData};
+    use crate::types::keys::KeyPair;
+    use crate::types::transaction::{InPoint, OutPoint, Transaction, TransactionData};
 
     struct BlockGen {
         valid: bool,

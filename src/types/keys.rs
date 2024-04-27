@@ -1,5 +1,4 @@
-use crate::errors::DeserializeError;
-use crate::io::{ByteIO, FileIO};
+use crate::traits::io::{ByteIO, FileIO, DeserializeError};
 use ed25519_dalek::{Signature as DalekSignature, Signer, SigningKey, SECRET_KEY_LENGTH};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
