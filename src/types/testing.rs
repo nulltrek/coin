@@ -1,5 +1,5 @@
-use crate::types::hash::Hash;
 use crate::types::block::{Block, BlockData};
+use crate::types::hash::Hash;
 use crate::types::keys::KeyPair;
 use crate::types::transaction::{InPoint, OutPoint, Transaction, TransactionData};
 
