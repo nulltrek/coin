@@ -37,7 +37,7 @@ impl Transaction {
         }
     }
 
-    pub fn is_valid(&self) -> bool {
+    pub fn is_hash_valid(&self) -> bool {
         let bytes: Vec<u8> = bincode::serialize(&self.data).unwrap();
         return Hash::new(bytes.as_slice()).digest() == self.hash.digest();
     }
@@ -107,13 +107,13 @@ mod tests {
         };
 
         let tx_1 = Transaction::new(tx_data.clone());
-        assert!(tx_1.is_valid());
+        assert!(tx_1.is_hash_valid());
 
         let tx_2 = Transaction {
             hash: Hash::new(b"test"),
             data: tx_data,
         };
-        assert!(!tx_2.is_valid());
+        assert!(!tx_2.is_hash_valid());
     }
 
     #[test]
@@ -139,7 +139,7 @@ mod tests {
         let bytes = tx.into_bytes();
 
         let deserialized_tx = Transaction::from_bytes(bytes.as_slice()).unwrap();
-        assert!(!deserialized_tx.is_valid());
+        assert!(!deserialized_tx.is_hash_valid());
     }
 
     #[test]
