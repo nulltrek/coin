@@ -1,5 +1,5 @@
-use crate::types::hash::Hash;
 use crate::traits::io::{ByteIO, FileIO};
+use crate::types::hash::Hash;
 use crate::types::keys::{PublicKey, Signature};
 use serde::{Deserialize, Serialize};
 
