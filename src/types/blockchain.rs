@@ -101,8 +101,8 @@ mod tests {
             } else {
                 Hash::new(&name)
             };
-            let block = Block::new(&BlockData::new(
-                &prev_hash,
+            let block = Block::new(BlockData::new(
+                prev_hash,
                 0,
                 vec![Transaction::new(TransactionData {
                     inputs: vec![InPoint {

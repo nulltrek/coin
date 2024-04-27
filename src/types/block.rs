@@ -12,13 +12,13 @@ pub struct BlockData {
 }
 
 impl BlockData {
-    pub fn new(prev_hash: &Hash, nonce: u32, transactions: Vec<Transaction>) -> BlockData {
+    pub fn new(prev_hash: Hash, nonce: u32, transactions: Vec<Transaction>) -> BlockData {
         let digest_list: Vec<Vec<u8>> = transactions
             .iter()
             .map(|val| val.hash.digest().to_vec())
             .collect();
         BlockData {
-            prev_hash: prev_hash.clone(),
+            prev_hash: prev_hash,
             nonce,
             top_hash: Hash::new(&digest_list.concat().as_slice()),
             transactions,
@@ -33,11 +33,11 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn new(block_data: &BlockData) -> Block {
+    pub fn new(block_data: BlockData) -> Block {
         let bytes: Vec<u8> = bincode::serialize(&block_data).unwrap();
         Block {
             hash: Hash::new(bytes.as_slice()),
-            data: block_data.clone(),
+            data: block_data,
         }
     }
 }
@@ -86,7 +86,7 @@ mod tests {
                 .concat()
                 .as_slice(),
         );
-        let block_data = BlockData::new(&Hash::new(b"test"), 0, txs);
+        let block_data = BlockData::new(Hash::new(b"test"), 0, txs);
         assert_eq!(block_data.top_hash, top_hash)
     }
 
@@ -118,10 +118,10 @@ mod tests {
         });
 
         let txs_1 = vec![tx_1.clone(), tx_2.clone()];
-        let block_data_1 = BlockData::new(&Hash::new(b"test"), 0, txs_1);
+        let block_data_1 = BlockData::new(Hash::new(b"test"), 0, txs_1);
 
         let txs_2 = vec![tx_2.clone(), tx_1.clone()];
-        let block_data_2 = BlockData::new(&Hash::new(b"test"), 0, txs_2);
+        let block_data_2 = BlockData::new(Hash::new(b"test"), 0, txs_2);
 
         assert_ne!(block_data_1.top_hash, block_data_2.top_hash)
     }
@@ -130,8 +130,8 @@ mod tests {
     fn file_io() {
         let key = KeyPair::new();
 
-        let original = Block::new(&BlockData::new(
-            &Hash::new(b"test"),
+        let original = Block::new(BlockData::new(
+            Hash::new(b"test"),
             0,
             vec![Transaction::new(TransactionData {
                 inputs: vec![InPoint {
