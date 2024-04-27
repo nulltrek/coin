@@ -1,6 +1,6 @@
+use crate::traits::io::{ByteIO, FileIO};
 use crate::types::block::Block;
 use crate::types::hash::Hash;
-use crate::traits::io::{ByteIO, FileIO};
 use crate::types::transaction::Transaction;
 use serde::{Deserialize, Serialize};
 
