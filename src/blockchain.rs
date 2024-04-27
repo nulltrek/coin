@@ -22,9 +22,9 @@ pub struct Blockchain {
 }
 
 impl Blockchain {
-    pub fn new(genesis: &Block) -> Blockchain {
+    pub fn new(genesis: Block) -> Blockchain {
         Blockchain {
-            list: vec![genesis.clone()],
+            list: vec![genesis],
         }
     }
 
@@ -32,9 +32,9 @@ impl Blockchain {
         return self.list.len();
     }
 
-    pub fn append(&mut self, block: &Block) -> Result<usize, BlockchainError> {
+    pub fn append(&mut self, block: Block) -> Result<usize, BlockchainError> {
         if block.data.prev_hash == self.list[self.list.len() - 1].hash {
-            self.list.push(block.clone());
+            self.list.push(block);
             return Ok(self.list.len() - 1);
         }
         Err(BlockchainError::new("Cannot add block to chain"))
@@ -114,10 +114,10 @@ mod tests {
     fn add_block() {
         let mut block_gen = BlockGen::new(true);
 
-        let mut chain = Blockchain::new(&block_gen.next().unwrap());
+        let mut chain = Blockchain::new(block_gen.next().unwrap());
         assert_eq!(chain.height(), 1);
 
-        let result = chain.append(&block_gen.next().unwrap());
+        let result = chain.append(block_gen.next().unwrap());
         assert_eq!(chain.height(), 2);
         assert!(result.is_ok());
     }
@@ -126,10 +126,10 @@ mod tests {
     fn add_block_error() {
         let mut block_gen = BlockGen::new(false);
 
-        let mut chain = Blockchain::new(&block_gen.next().unwrap());
+        let mut chain = Blockchain::new(block_gen.next().unwrap());
         assert_eq!(chain.height(), 1);
 
-        let result = chain.append(&block_gen.next().unwrap());
+        let result = chain.append(block_gen.next().unwrap());
         assert_eq!(chain.height(), 1);
         assert!(result.is_err());
     }
