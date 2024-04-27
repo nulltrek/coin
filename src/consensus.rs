@@ -1,25 +1,35 @@
+use crate::traits::io::{ByteIO, FileIO};
 use crate::types::hash::Hash;
 use ethnum::U256;
+use serde::{Deserialize, Serialize};
 
-struct ConsensusRules {
-    target: U256,
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ConsensusRules {
+    target: [u8; 32],
 }
 
 impl Default for ConsensusRules {
     fn default() -> ConsensusRules {
-        ConsensusRules { target: U256::MAX }
+        ConsensusRules {
+            target: U256::MAX.to_be_bytes(),
+        }
     }
 }
 
 impl ConsensusRules {
-    fn new(target: U256) -> ConsensusRules {
-        ConsensusRules { target }
+    pub fn new(target: U256) -> ConsensusRules {
+        ConsensusRules {
+            target: target.to_be_bytes(),
+        }
     }
 
-    fn validate_target(&self, hash: &Hash) -> bool {
-        U256::from_be_bytes(hash.digest().clone()) < self.target
+    pub fn validate_target(&self, hash: &Hash) -> bool {
+        U256::from_be_bytes(hash.digest().clone()) < U256::from_be_bytes(self.target)
     }
 }
+
+impl ByteIO for ConsensusRules {}
+impl FileIO for ConsensusRules {}
 
 #[cfg(test)]
 mod tests {
