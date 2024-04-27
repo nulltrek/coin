@@ -1,7 +1,6 @@
+use crate::io::ByteIO;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-
-// let hash = Sha256::digest(b"my message");
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Hash {
@@ -22,6 +21,8 @@ impl Hash {
     }
 }
 
+impl ByteIO for Hash {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -35,5 +36,17 @@ mod tests {
                 191, 79, 27, 43, 11, 130, 44, 209, 93, 108, 21, 176, 240, 10, 8
             ]
         );
+    }
+
+    #[test]
+    fn byte_io() {
+        let bytes = vec![
+            159, 134, 208, 129, 136, 76, 125, 101, 154, 47, 234, 160, 197, 90, 208, 21, 163, 191,
+            79, 27, 43, 11, 130, 44, 209, 93, 108, 21, 176, 240, 10, 8,
+        ];
+        let hash = Hash::from_bytes(&bytes).unwrap();
+
+        assert_eq!(Hash::new(b"test"), hash);
+        assert_eq!(Hash::new(b"test").into_bytes(), Hash::new(b"test").digest());
     }
 }
