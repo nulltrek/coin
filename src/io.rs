@@ -1,8 +1,10 @@
-use crate::errors::DeserializeError;
 use bincode;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::{Read, Write};
+
+#[derive(Debug)]
+pub struct DeserializeError;
 
 pub trait ByteIO: Serialize + for<'a> Deserialize<'a> {
     fn from_bytes(bytes: &[u8]) -> Result<Self, DeserializeError> {
