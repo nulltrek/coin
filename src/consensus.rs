@@ -5,13 +5,15 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ConsensusRules {
-    target: [u8; 32],
+    pub target: [u8; 32],
+    pub coins_per_block: u64,
 }
 
 impl Default for ConsensusRules {
     fn default() -> ConsensusRules {
         ConsensusRules {
             target: U256::MAX.to_be_bytes(),
+            coins_per_block: 10000,
         }
     }
 }
@@ -20,6 +22,7 @@ impl ConsensusRules {
     pub fn new(target: U256) -> ConsensusRules {
         ConsensusRules {
             target: target.to_be_bytes(),
+            ..ConsensusRules::default()
         }
     }
 
