@@ -1,6 +1,6 @@
-use crate::hash::Hash;
-use crate::io::{ByteIO, FileIO};
-use crate::keys::{PublicKey, Signature};
+use crate::types::hash::Hash;
+use crate::traits::io::{ByteIO, FileIO};
+use crate::types::keys::{PublicKey, Signature};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
@@ -55,7 +55,7 @@ pub struct Utxo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::keys::KeyPair;
+    use crate::types::keys::KeyPair;
     use tempfile::*;
 
     #[test]

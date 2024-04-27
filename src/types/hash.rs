@@ -1,4 +1,4 @@
-use crate::io::ByteIO;
+use crate::traits::io::ByteIO;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 

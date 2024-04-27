@@ -1,4 +1,4 @@
-use crate::hash::Hash;
+use crate::types::hash::Hash;
 use ethnum::U256;
 
 struct ConsensusRules {
@@ -24,7 +24,7 @@ impl ConsensusRules {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::io::ByteIO;
+    use crate::traits::io::ByteIO;
 
     #[test]
     fn target_cmp() {

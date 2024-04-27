@@ -1,6 +1,6 @@
-use crate::hash::Hash;
-use crate::io::{ByteIO, FileIO};
-use crate::transaction::Transaction;
+use crate::types::hash::Hash;
+use crate::traits::io::{ByteIO, FileIO};
+use crate::types::transaction::Transaction;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
@@ -49,8 +49,8 @@ impl FileIO for Block {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::keys::KeyPair;
-    use crate::transaction::{InPoint, OutPoint, TransactionData};
+    use crate::types::keys::KeyPair;
+    use crate::types::transaction::{InPoint, OutPoint, TransactionData};
     use tempfile::*;
 
     #[test]
