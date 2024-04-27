@@ -92,7 +92,7 @@ mod tests {
             let block = Block::new(&BlockData::new(
                 &prev_hash,
                 0,
-                vec![Transaction::new(&TransactionData {
+                vec![Transaction::new(TransactionData {
                     inputs: vec![InPoint {
                         hash: Hash::new(&name),
                         index: 0,

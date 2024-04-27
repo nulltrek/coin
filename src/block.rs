@@ -57,7 +57,7 @@ mod tests {
     fn hashing_equality() {
         let key = KeyPair::new();
         let txs = vec![
-            Transaction::new(&TransactionData {
+            Transaction::new(TransactionData {
                 inputs: vec![InPoint {
                     hash: Hash::new(b"test_1"),
                     index: 0,
@@ -68,7 +68,7 @@ mod tests {
                     pubkey: key.public_key(),
                 }],
             }),
-            Transaction::new(&TransactionData {
+            Transaction::new(TransactionData {
                 inputs: vec![InPoint {
                     hash: Hash::new(b"test_2"),
                     index: 0,
@@ -94,7 +94,7 @@ mod tests {
     fn hashing_inequality() {
         let key = KeyPair::new();
 
-        let tx_1 = Transaction::new(&TransactionData {
+        let tx_1 = Transaction::new(TransactionData {
             inputs: vec![InPoint {
                 hash: Hash::new(b"test_1"),
                 index: 0,
@@ -105,7 +105,7 @@ mod tests {
                 pubkey: key.public_key(),
             }],
         });
-        let tx_2 = Transaction::new(&TransactionData {
+        let tx_2 = Transaction::new(TransactionData {
             inputs: vec![InPoint {
                 hash: Hash::new(b"test_2"),
                 index: 0,
@@ -133,7 +133,7 @@ mod tests {
         let original = Block::new(&BlockData::new(
             &Hash::new(b"test"),
             0,
-            vec![Transaction::new(&TransactionData {
+            vec![Transaction::new(TransactionData {
                 inputs: vec![InPoint {
                     hash: Hash::new(b"test_1"),
                     index: 0,

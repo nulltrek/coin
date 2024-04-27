@@ -29,11 +29,11 @@ pub struct Transaction {
 }
 
 impl Transaction {
-    pub fn new(tx_data: &TransactionData) -> Transaction {
+    pub fn new(tx_data: TransactionData) -> Transaction {
         let bytes: Vec<u8> = bincode::serialize(&tx_data).unwrap();
         Transaction {
             hash: Hash::new(bytes.as_slice()),
-            data: tx_data.clone(),
+            data: tx_data,
         }
     }
 
@@ -85,8 +85,8 @@ mod tests {
             }],
         };
 
-        let tx1 = Transaction::new(&tx_data_1);
-        let tx2 = Transaction::new(&tx_data_2);
+        let tx1 = Transaction::new(tx_data_1);
+        let tx2 = Transaction::new(tx_data_2);
 
         assert_eq!(tx1.hash, tx2.hash)
     }
@@ -106,12 +106,12 @@ mod tests {
             }],
         };
 
-        let tx_1 = Transaction::new(&tx_data);
+        let tx_1 = Transaction::new(tx_data.clone());
         assert!(tx_1.is_valid());
 
         let tx_2 = Transaction {
             hash: Hash::new(b"test"),
-            data: tx_data.clone(),
+            data: tx_data,
         };
         assert!(!tx_2.is_valid());
     }
@@ -133,7 +133,7 @@ mod tests {
 
         let tx = Transaction {
             hash: Hash::new(b"test"),
-            data: tx_data.clone(),
+            data: tx_data,
         };
 
         let bytes = tx.into_bytes();
