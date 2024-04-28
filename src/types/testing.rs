@@ -55,10 +55,12 @@ impl Iterator for BlockGen {
                     index: 0,
                     signature: self.keys.sign(&name),
                 }],
-                outputs: (0..self.output_count).map(|_| Output {
-                    value: self.output_value,
-                    pubkey: self.keys.public_key(),
-                }).collect(),
+                outputs: (0..self.output_count)
+                    .map(|_| Output {
+                        value: self.output_value,
+                        pubkey: self.keys.public_key(),
+                    })
+                    .collect(),
             })],
         ));
         self.index += 1;
