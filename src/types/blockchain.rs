@@ -73,7 +73,7 @@ mod tests {
 
     #[test]
     fn add_block() {
-        let mut block_gen = BlockGen::new(true);
+        let mut block_gen = BlockGen::default();
 
         let mut chain = Blockchain::new(block_gen.next().unwrap());
         assert_eq!(chain.height(), 1);
@@ -85,7 +85,7 @@ mod tests {
 
     #[test]
     fn add_block_error() {
-        let mut block_gen = BlockGen::new(false);
+        let mut block_gen = BlockGen::new(false, 1, 1);
 
         let mut chain = Blockchain::new(block_gen.next().unwrap());
         assert_eq!(chain.height(), 1);
@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn add_block_height() {
-        let mut block_gen = BlockGen::new(true);
+        let mut block_gen = BlockGen::default();
 
         let mut chain = Blockchain::new(block_gen.next().unwrap());
         assert_eq!(chain.height(), 1);
@@ -113,7 +113,7 @@ mod tests {
 
     #[test]
     fn query_blocks() {
-        let mut block_gen = BlockGen::new(true);
+        let mut block_gen = BlockGen::default();
 
         let mut chain = Blockchain::new(block_gen.next().unwrap());
         let mut hashes = Vec::<(Hash, usize)>::new();
@@ -139,7 +139,7 @@ mod tests {
     #[test]
     fn query_txs() {
         let mut rng = thread_rng();
-        let mut block_gen = BlockGen::new(true);
+        let mut block_gen = BlockGen::default();
 
         let mut chain = Blockchain::new(block_gen.next().unwrap());
         let mut hashes = Vec::<(Hash, usize)>::new();

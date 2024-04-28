@@ -8,15 +8,30 @@ pub struct BlockGen {
     keys: KeyPair,
     index: usize,
     prev_hash: Hash,
+    pub output_count: u32,
+    output_value: u64,
 }
 
-impl BlockGen {
-    pub fn new(valid: bool) -> BlockGen {
+impl Default for BlockGen {
+    fn default() -> BlockGen {
         BlockGen {
-            valid: valid,
+            valid: true,
             keys: KeyPair::new(),
             index: 0,
             prev_hash: Hash::new(b"genesis"),
+            output_count: 1,
+            output_value: 1,
+        }
+    }
+}
+
+impl BlockGen {
+    pub fn new(valid: bool, output_count: u32, output_value: u64) -> BlockGen {
+        BlockGen {
+            valid,
+            output_count,
+            output_value,
+            ..BlockGen::default()
         }
     }
 }
@@ -40,10 +55,10 @@ impl Iterator for BlockGen {
                     index: 0,
                     signature: self.keys.sign(&name),
                 }],
-                outputs: vec![OutPoint {
-                    value: 1,
+                outputs: (0..self.output_count).map(|_| OutPoint {
+                    value: self.output_value,
                     pubkey: self.keys.public_key(),
-                }],
+                }).collect(),
             })],
         ));
         self.index += 1;
