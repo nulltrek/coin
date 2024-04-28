@@ -1,7 +1,7 @@
 use crate::types::block::{Block, BlockData};
 use crate::types::hash::Hash;
 use crate::types::keys::KeyPair;
-use crate::types::transaction::{InPoint, OutPoint, Transaction, TransactionData};
+use crate::types::transaction::{Input, Output, Transaction, TransactionData};
 
 pub struct BlockGen {
     valid: bool,
@@ -50,12 +50,12 @@ impl Iterator for BlockGen {
             prev_hash,
             0,
             vec![Transaction::new(TransactionData {
-                inputs: vec![InPoint {
+                inputs: vec![Input {
                     hash: Hash::new(&name),
                     index: 0,
                     signature: self.keys.sign(&name),
                 }],
-                outputs: (0..self.output_count).map(|_| OutPoint {
+                outputs: (0..self.output_count).map(|_| Output {
                     value: self.output_value,
                     pubkey: self.keys.public_key(),
                 }).collect(),

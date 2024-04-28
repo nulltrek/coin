@@ -4,22 +4,22 @@ use crate::types::keys::{PublicKey, Signature};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-pub struct InPoint {
+pub struct Input {
     pub hash: Hash,
     pub index: u32,
     pub signature: Signature,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-pub struct OutPoint {
+pub struct Output {
     pub value: u64,
     pub pubkey: PublicKey,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct TransactionData {
-    pub inputs: Vec<InPoint>,
-    pub outputs: Vec<OutPoint>,
+    pub inputs: Vec<Input>,
+    pub outputs: Vec<Output>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
@@ -62,24 +62,24 @@ mod tests {
     fn hashing_equality() {
         let key = KeyPair::new();
         let tx_data_1 = TransactionData {
-            inputs: vec![InPoint {
+            inputs: vec![Input {
                 hash: Hash::new(b"test"),
                 index: 0,
                 signature: key.sign(b"test"),
             }],
-            outputs: vec![OutPoint {
+            outputs: vec![Output {
                 value: 1,
                 pubkey: key.public_key(),
             }],
         };
 
         let tx_data_2 = TransactionData {
-            inputs: vec![InPoint {
+            inputs: vec![Input {
                 hash: Hash::new(b"test"),
                 index: 0,
                 signature: key.sign(b"test"),
             }],
-            outputs: vec![OutPoint {
+            outputs: vec![Output {
                 value: 1,
                 pubkey: key.public_key(),
             }],
@@ -95,12 +95,12 @@ mod tests {
     fn validation() {
         let key = KeyPair::new();
         let tx_data = TransactionData {
-            inputs: vec![InPoint {
+            inputs: vec![Input {
                 hash: Hash::new(b"test"),
                 index: 0,
                 signature: key.sign(b"test"),
             }],
-            outputs: vec![OutPoint {
+            outputs: vec![Output {
                 value: 1,
                 pubkey: key.public_key(),
             }],
@@ -120,12 +120,12 @@ mod tests {
     fn unserialize_validation() {
         let key = KeyPair::new();
         let tx_data = TransactionData {
-            inputs: vec![InPoint {
+            inputs: vec![Input {
                 hash: Hash::new(b"test"),
                 index: 0,
                 signature: key.sign(b"test"),
             }],
-            outputs: vec![OutPoint {
+            outputs: vec![Output {
                 value: 1,
                 pubkey: key.public_key(),
             }],
@@ -149,12 +149,12 @@ mod tests {
         let original = Transaction {
             hash: Hash::new(b"test"),
             data: TransactionData {
-                inputs: vec![InPoint {
+                inputs: vec![Input {
                     hash: Hash::new(b"test"),
                     index: 0,
                     signature: key.sign(b"test"),
                 }],
-                outputs: vec![OutPoint {
+                outputs: vec![Output {
                     value: 1,
                     pubkey: key.public_key(),
                 }],
