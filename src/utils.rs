@@ -2,12 +2,12 @@ use crate::consensus::ConsensusRules;
 use crate::types::block::{Block, BlockData};
 use crate::types::hash::Hash;
 use crate::types::keys::PublicKey;
-use crate::types::transaction::{OutPoint, Transaction, TransactionData};
+use crate::types::transaction::{Output, Transaction, TransactionData};
 
 pub fn new_coinbase_tx(rules: &ConsensusRules, pubkey: &PublicKey) -> Transaction {
     Transaction::new(TransactionData {
         inputs: Vec::new(),
-        outputs: vec![OutPoint {
+        outputs: vec![Output {
             value: rules.coins_per_block,
             pubkey: pubkey.clone(),
         }],
@@ -38,7 +38,7 @@ pub fn get_block_value(block: &Block) -> u64 {
 mod tests {
     use super::*;
     use crate::types::keys::KeyPair;
-    use crate::types::transaction::InPoint;
+    use crate::types::transaction::Input;
     use crate::types::testing::BlockGen;
 
     #[test]
@@ -50,21 +50,21 @@ mod tests {
         assert_eq!(get_tx_value(&tx), cr.coins_per_block);
 
         let tx = Transaction::new(TransactionData {
-            inputs: vec![InPoint {
+            inputs: vec![Input {
                 hash: Hash::new(b"test"),
                 index: 0,
                 signature: key.sign(b"test"),
             }],
             outputs: vec![
-                OutPoint {
+                Output {
                     value: 10,
                     pubkey: key.public_key(),
                 },
-                OutPoint {
+                Output {
                     value: 5,
                     pubkey: key.public_key(),
                 },
-                OutPoint {
+                Output {
                     value: 62,
                     pubkey: key.public_key(),
                 },

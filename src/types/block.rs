@@ -50,7 +50,7 @@ impl FileIO for Block {}
 mod tests {
     use super::*;
     use crate::types::keys::KeyPair;
-    use crate::types::transaction::{InPoint, OutPoint, TransactionData};
+    use crate::types::transaction::{Input, Output, TransactionData};
     use tempfile::*;
 
     #[test]
@@ -58,23 +58,23 @@ mod tests {
         let key = KeyPair::new();
         let txs = vec![
             Transaction::new(TransactionData {
-                inputs: vec![InPoint {
+                inputs: vec![Input {
                     hash: Hash::new(b"test_1"),
                     index: 0,
                     signature: key.sign(b"test_1"),
                 }],
-                outputs: vec![OutPoint {
+                outputs: vec![Output {
                     value: 1,
                     pubkey: key.public_key(),
                 }],
             }),
             Transaction::new(TransactionData {
-                inputs: vec![InPoint {
+                inputs: vec![Input {
                     hash: Hash::new(b"test_2"),
                     index: 0,
                     signature: key.sign(b"test_2"),
                 }],
-                outputs: vec![OutPoint {
+                outputs: vec![Output {
                     value: 1,
                     pubkey: key.public_key(),
                 }],
@@ -95,23 +95,23 @@ mod tests {
         let key = KeyPair::new();
 
         let tx_1 = Transaction::new(TransactionData {
-            inputs: vec![InPoint {
+            inputs: vec![Input {
                 hash: Hash::new(b"test_1"),
                 index: 0,
                 signature: key.sign(b"test_1"),
             }],
-            outputs: vec![OutPoint {
+            outputs: vec![Output {
                 value: 1,
                 pubkey: key.public_key(),
             }],
         });
         let tx_2 = Transaction::new(TransactionData {
-            inputs: vec![InPoint {
+            inputs: vec![Input {
                 hash: Hash::new(b"test_2"),
                 index: 0,
                 signature: key.sign(b"test_2"),
             }],
-            outputs: vec![OutPoint {
+            outputs: vec![Output {
                 value: 1,
                 pubkey: key.public_key(),
             }],
@@ -134,12 +134,12 @@ mod tests {
             Hash::new(b"test"),
             0,
             vec![Transaction::new(TransactionData {
-                inputs: vec![InPoint {
+                inputs: vec![Input {
                     hash: Hash::new(b"test_1"),
                     index: 0,
                     signature: key.sign(b"test_1"),
                 }],
-                outputs: vec![OutPoint {
+                outputs: vec![Output {
                     value: 1,
                     pubkey: key.public_key(),
                 }],
