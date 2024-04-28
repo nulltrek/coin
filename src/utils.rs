@@ -38,6 +38,8 @@ pub fn get_block_value(block: &Block) -> u64 {
 mod tests {
     use super::*;
     use crate::types::keys::KeyPair;
+    use crate::types::transaction::InPoint;
+    use crate::types::testing::BlockGen;
 
     #[test]
     fn tx_value() {
@@ -46,6 +48,29 @@ mod tests {
         let tx = new_coinbase_tx(&cr, &key.public_key());
 
         assert_eq!(get_tx_value(&tx), cr.coins_per_block);
+
+        let tx = Transaction::new(TransactionData {
+            inputs: vec![InPoint {
+                hash: Hash::new(b"test"),
+                index: 0,
+                signature: key.sign(b"test"),
+            }],
+            outputs: vec![
+                OutPoint {
+                    value: 10,
+                    pubkey: key.public_key(),
+                },
+                OutPoint {
+                    value: 5,
+                    pubkey: key.public_key(),
+                },
+                OutPoint {
+                    value: 62,
+                    pubkey: key.public_key(),
+                },
+            ],
+        });
+        assert_eq!(get_tx_value(&tx), 77);
     }
 
     #[test]
@@ -55,5 +80,8 @@ mod tests {
         let block = new_genesis_block(&cr, &key.public_key());
 
         assert_eq!(get_block_value(&block), cr.coins_per_block);
+
+        let mut block_gen = BlockGen::new(true, 10, 10);
+        assert_eq!(get_block_value(&block_gen.next().unwrap()), 100);
     }
 }
