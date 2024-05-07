@@ -47,11 +47,6 @@ impl ByteIO for Transaction {}
 
 impl FileIO for Transaction {}
 
-pub struct Utxo {
-    hash: Hash,
-    output: u32,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

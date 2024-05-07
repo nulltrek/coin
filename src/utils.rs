@@ -2,8 +2,10 @@ use crate::consensus::ConsensusRules;
 use crate::types::block::{Block, BlockData};
 use crate::types::blockchain::Blockchain;
 use crate::types::hash::Hash;
-use crate::types::keys::PublicKey;
+use crate::types::keys::KeyPair;
+use crate::types::keys::{PublicKey, Verifier};
 use crate::types::transaction::{Output, Transaction, TransactionData};
+use crate::utxo::{IntoInputs, Utxo, UtxoError};
 use std::ops::Add;
 
 pub struct TotalValue {
@@ -78,8 +80,8 @@ pub fn get_tx_input_value(chain: &Blockchain, tx: &Transaction) -> Option<u64> {
     Some(value)
 }
 
-pub fn get_tx_output_value(tx: &Transaction) -> u64 {
-    tx.data.outputs.iter().fold(0, |acc, o| acc + o.value)
+pub fn get_tx_output_value(outputs: &Vec<Output>) -> u64 {
+    outputs.iter().fold(0, |acc, o| acc + o.value)
 }
 
 pub fn get_tx_value(chain: &Blockchain, tx: &Transaction) -> Option<TotalValue> {
@@ -87,7 +89,7 @@ pub fn get_tx_value(chain: &Blockchain, tx: &Transaction) -> Option<TotalValue> 
         Some(value) => value,
         None => return None,
     };
-    let output = get_tx_output_value(tx);
+    let output = get_tx_output_value(&tx.data.outputs);
     let fees = if input == 0 { 0 } else { input - output };
     Some(TotalValue::new(input, output, fees))
 }
@@ -104,9 +106,47 @@ pub fn get_block_value(chain: &Blockchain, block: &Block) -> Option<TotalValue> 
     Some(acc)
 }
 
+pub fn new_tx(
+    key: &KeyPair,
+    utxos: &[Utxo],
+    mut outputs: Vec<Output>,
+) -> Result<Transaction, UtxoError> {
+    let value = get_tx_output_value(&outputs);
+    let selection = Utxo::collect(utxos, value)?;
+    let inputs = selection.list.into_inputs(key);
+    outputs.push(Output {
+        value: selection.change,
+        pubkey: key.public_key(),
+    });
+    Ok(Transaction::new(TransactionData { inputs, outputs }))
+}
+
+pub fn verify_tx_signatures(chain: &Blockchain, tx: &Transaction) -> bool {
+    for input in &tx.data.inputs {
+        let idx = input.index as usize;
+        let (_, input_tx) = match chain.query_tx(&input.hash) {
+            Some(result) => result,
+            None => return false,
+        };
+
+        if input_tx.data.outputs.len() <= idx {
+            return false;
+        }
+
+        if !input_tx.data.outputs[idx]
+            .pubkey
+            .verify(input_tx.hash.digest(), &input.signature)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::chain::Chain;
     use crate::types::keys::KeyPair;
     use crate::types::transaction::Input;
 
@@ -116,7 +156,7 @@ mod tests {
         let cr = ConsensusRules::default();
         let tx = new_coinbase_tx(&cr, &key.public_key());
 
-        assert_eq!(get_tx_output_value(&tx), cr.coins_per_block);
+        assert_eq!(get_tx_output_value(&tx.data.outputs), cr.coins_per_block);
 
         let tx = Transaction::new(TransactionData {
             inputs: vec![Input {
@@ -139,7 +179,7 @@ mod tests {
                 },
             ],
         });
-        assert_eq!(get_tx_output_value(&tx), 77);
+        assert_eq!(get_tx_output_value(&tx.data.outputs), 77);
     }
 
     #[test]
@@ -183,5 +223,76 @@ mod tests {
         assert_eq!(value.input, cr.coins_per_block);
         assert_eq!(value.output, 19000);
         assert_eq!(value.fees, 1000);
+    }
+
+    #[test]
+    fn tx_creation() {
+        let key_1 = KeyPair::new();
+        let key_2 = KeyPair::new();
+
+        let chain = Chain::new(&key_1.public_key());
+
+        let utxos = chain.find_utxos_for_key(&key_1.public_key());
+
+        let tx = new_tx(
+            &key_1,
+            &utxos,
+            vec![Output {
+                value: 20000,
+                pubkey: key_2.public_key().clone(),
+            }],
+        );
+
+        assert!(tx.is_err());
+
+        let tx = new_tx(
+            &key_1,
+            &utxos,
+            vec![Output {
+                value: 7000,
+                pubkey: key_2.public_key().clone(),
+            }],
+        );
+
+        assert!(tx.is_ok());
+
+        let tx = tx.unwrap();
+        assert_eq!(tx.data.outputs.len(), 2);
+        assert_eq!(tx.data.outputs[0].value, 7000);
+        assert_eq!(tx.data.outputs[0].pubkey, key_2.public_key());
+        assert_eq!(tx.data.outputs[1].value, 3000);
+        assert_eq!(tx.data.outputs[1].pubkey, key_1.public_key());
+    }
+
+    #[test]
+    fn signature_verification() {
+        let key_1 = KeyPair::new();
+        let key_2 = KeyPair::new();
+
+        let chain = Chain::new(&key_1.public_key());
+        let utxos = chain.find_utxos_for_key(&key_1.public_key());
+
+        let tx = new_tx(
+            &key_1,
+            &utxos,
+            vec![Output {
+                value: 5000,
+                pubkey: key_2.public_key(),
+            }],
+        );
+
+        assert!(verify_tx_signatures(&chain.chain, &tx.unwrap()));
+
+        let tx = new_tx(
+            &key_2,
+            &utxos,
+            vec![Output {
+                value: 5000,
+                pubkey: key_2.public_key(),
+            }],
+        )
+        .unwrap();
+
+        assert!(!verify_tx_signatures(&chain.chain, &tx));
     }
 }
