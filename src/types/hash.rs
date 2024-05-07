@@ -1,8 +1,9 @@
 use crate::traits::io::ByteIO;
+use ethnum::U256;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Hash {
     value: [u8; Hash::SIZE],
 }
@@ -18,6 +19,10 @@ impl Hash {
 
     pub fn digest(&self) -> &[u8; Hash::SIZE] {
         &self.value
+    }
+
+    pub fn is_zero(&self) -> bool {
+        U256::from_be_bytes(self.value.clone()) == U256::from(0_u32)
     }
 }
 
@@ -54,5 +59,16 @@ mod tests {
 
         assert_eq!(Hash::new(b"test"), hash);
         assert_eq!(Hash::new(b"test").into_bytes(), Hash::new(b"test").digest());
+    }
+
+    #[test]
+    fn is_zero() {
+        assert!(Hash::default().is_zero());
+
+        let bytes = vec![
+            159, 134, 208, 129, 136, 76, 125, 101, 154, 47, 234, 160, 197, 90, 208, 21, 163, 191,
+            79, 27, 43, 11, 130, 44, 209, 93, 108, 21, 176, 240, 10, 8,
+        ];
+        assert!(!Hash::from_bytes(&bytes).unwrap().is_zero());
     }
 }
