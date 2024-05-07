@@ -3,18 +3,11 @@ use crate::types::block::Block;
 use crate::types::hash::Hash;
 use crate::types::transaction::Transaction;
 use serde::{Deserialize, Serialize};
+use std::slice::Iter;
 
 #[derive(Debug)]
-pub struct BlockchainError {
-    pub message: Option<String>,
-}
-
-impl BlockchainError {
-    fn new(message: &str) -> BlockchainError {
-        return BlockchainError {
-            message: Some(message.to_string()),
-        };
-    }
+pub enum BlockchainError {
+    CannotAddBlock,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -38,7 +31,14 @@ impl Blockchain {
             self.list.push(block);
             return Ok(self.list.len() - 1);
         }
-        Err(BlockchainError::new("Cannot add block to chain"))
+        Err(BlockchainError::CannotAddBlock)
+    }
+
+    pub fn get_block(&self, height: usize) -> Option<&Block> {
+        if self.list.len() <= height {
+            return None;
+        }
+        Some(&self.list[height])
     }
 
     pub fn query_block(&self, hash: &Hash) -> Option<(usize, &Block)> {
@@ -59,6 +59,10 @@ impl Blockchain {
             }
         }
         return None;
+    }
+
+    pub fn iter(&self) -> Iter<'_, Block> {
+        self.list.iter()
     }
 }
 
