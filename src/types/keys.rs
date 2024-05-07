@@ -1,15 +1,34 @@
 use crate::traits::io::{ByteIO, DeserializeError, FileIO};
-use ed25519_dalek::{Signature as DalekSignature, Signer, SigningKey, SECRET_KEY_LENGTH};
+use ed25519_dalek::{
+    Signature as DalekSignature, Signer, SigningKey, Verifier as DalekVerifier, VerifyingKey,
+    SECRET_KEY_LENGTH,
+};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 
+pub trait Verifier {
+    fn verify(&self, message: &[u8], signature: &Signature) -> bool;
+}
+
 pub type PrivateKey = [u8; SECRET_KEY_LENGTH];
+
 pub type PublicKey = [u8; SECRET_KEY_LENGTH];
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-pub struct KeyPair(SigningKey);
+
+impl Verifier for PublicKey {
+    fn verify(&self, message: &[u8], signature: &Signature) -> bool {
+        let verifying_key = match VerifyingKey::from_bytes(self) {
+            Ok(key) => key,
+            Err(_) => return false,
+        };
+        verifying_key.verify(message, &signature.0).is_ok()
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Signature(DalekSignature);
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub struct KeyPair(SigningKey);
 
 impl KeyPair {
     pub fn new() -> KeyPair {
@@ -28,8 +47,10 @@ impl KeyPair {
     pub fn sign(&self, message: &[u8]) -> Signature {
         Signature(self.0.sign(message))
     }
+}
 
-    pub fn verify(&self, message: &[u8], signature: &Signature) -> bool {
+impl Verifier for KeyPair {
+    fn verify(&self, message: &[u8], signature: &Signature) -> bool {
         match self.0.verify(message, &signature.0) {
             Ok(_) => true,
             Err(_) => false,
@@ -59,6 +80,7 @@ impl FileIO for KeyPair {}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::hash::Hash;
     use tempfile::*;
 
     #[test]
@@ -110,5 +132,17 @@ mod tests {
         let mut in_file = temp_file.reopen().unwrap();
         let deserialized = KeyPair::from_file(&mut in_file).unwrap();
         assert_eq!(original, deserialized);
+    }
+
+    #[test]
+    fn verify_test() {
+        let key_1 = KeyPair::new();
+        let hash = Hash::new(b"test");
+        let signature = key_1.sign(hash.digest());
+
+        assert!(key_1.public_key().verify(hash.digest(), &signature));
+
+        let key_2 = KeyPair::new();
+        assert!(!key_2.public_key().verify(hash.digest(), &signature));
     }
 }
