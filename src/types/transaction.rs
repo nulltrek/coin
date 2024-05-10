@@ -22,6 +22,8 @@ pub struct TransactionData {
     pub outputs: Vec<Output>,
 }
 
+impl ByteIO for TransactionData {}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Transaction {
     pub hash: Hash,
@@ -38,7 +40,7 @@ impl Transaction {
     }
 
     pub fn is_hash_valid(&self) -> bool {
-        let bytes: Vec<u8> = bincode::serialize(&self.data).unwrap();
+        let bytes: Vec<u8> = self.data.into_bytes();
         return Hash::new(bytes.as_slice()).digest() == self.hash.digest();
     }
 }
