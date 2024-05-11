@@ -8,6 +8,7 @@ use crate::types::transaction::{Output, Transaction, TransactionData};
 use crate::utxo::{IntoInputs, Utxo, UtxoError};
 use std::ops::Add;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct TotalValue {
     pub input: u64,
     pub output: u64,
@@ -90,6 +91,9 @@ pub fn get_tx_value(chain: &Blockchain, tx: &Transaction) -> Option<TotalValue> 
         None => return None,
     };
     let output = get_tx_output_value(&tx.data.outputs);
+    if input > 0 && output > input {
+        return None;
+    }
     let fees = if input == 0 { 0 } else { input - output };
     Some(TotalValue::new(input, output, fees))
 }
@@ -223,6 +227,55 @@ mod tests {
         assert_eq!(value.input, cr.coins_per_block);
         assert_eq!(value.output, 19000);
         assert_eq!(value.fees, 1000);
+    }
+
+    #[test]
+    fn tx_get_value() {
+        let key = KeyPair::new();
+        let chain = Chain::new(&key.public_key());
+        let coinbase = &chain.chain.list[0].data.transactions[0];
+
+        let make_tx = |hash: &Hash, value: u64| {
+            Transaction::new(TransactionData {
+                inputs: vec![Input {
+                    hash: hash.clone(),
+                    index: 0,
+                    signature: key.sign(hash.digest()),
+                }],
+                outputs: vec![Output {
+                    value: value,
+                    pubkey: key.public_key(),
+                }],
+            })
+        };
+
+        let tx = make_tx(&coinbase.hash, 5000);
+        let value = get_tx_value(&chain.chain, &tx);
+        assert!(value.is_some());
+        assert_eq!(
+            get_tx_value(&chain.chain, &tx).unwrap(),
+            TotalValue {
+                input: chain.rules.coins_per_block,
+                output: 5000,
+                fees: chain.rules.coins_per_block - 5000,
+            }
+        );
+
+        let tx = make_tx(&coinbase.hash, chain.rules.coins_per_block);
+        let value = get_tx_value(&chain.chain, &tx);
+        assert!(value.is_some());
+        assert_eq!(
+            get_tx_value(&chain.chain, &tx).unwrap(),
+            TotalValue {
+                input: chain.rules.coins_per_block,
+                output: chain.rules.coins_per_block,
+                fees: 0,
+            }
+        );
+
+        let tx = make_tx(&coinbase.hash, chain.rules.coins_per_block + 1);
+        let value = get_tx_value(&chain.chain, &tx);
+        assert!(value.is_none());
     }
 
     #[test]
