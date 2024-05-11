@@ -107,6 +107,23 @@ impl Chain {
                 None => false,
             };
     }
+
+    /*
+     * A coinbase transaction is valid if:
+     * - Its hash is valid
+     * - There are no inputs
+     * - There is at least 1 output
+     * - The total output value is less than or equal to the coins per block consensus rule
+     */
+    fn validate_coinbase_tx(&self, tx: &Transaction) -> bool {
+        return tx.is_hash_valid()
+            && tx.data.inputs.len() == 0
+            && tx.data.outputs.len() > 0
+            && match get_tx_value(&self.chain, tx) {
+                Some(value) => value.input == 0 && value.output <= self.rules.coins_per_block,
+                None => false,
+            };
+    }
 }
 
 impl ByteIO for Chain {}
@@ -115,7 +132,9 @@ impl FileIO for Chain {}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::hash::Hash;
     use crate::types::keys::KeyPair;
+    use crate::types::transaction::{Input, Output, TransactionData};
 
     #[test]
     fn validate_genesis() {
@@ -141,10 +160,121 @@ mod tests {
         assert_eq!(utxos.len(), 0);
     }
 
-    // #[test]
-    // fn validate_tx() {
-    //     let key = KeyPair::new();
-    //     let chain = Chain::new(&key.public_key());
-    //     // TODO
-    // }
+    #[test]
+    fn validate_tx() {
+        let key_1 = KeyPair::new();
+        let key_2 = KeyPair::new();
+        let chain = Chain::new(&key_1.public_key());
+        let coinbase = &chain.chain.list[0].data.transactions[0];
+
+        let tx = Transaction::new(TransactionData {
+            inputs: vec![Input {
+                hash: coinbase.hash.clone(),
+                index: 0,
+                signature: key_1.sign(coinbase.hash.digest()),
+            }],
+            outputs: vec![Output {
+                value: 5000,
+                pubkey: key_2.public_key(),
+            }],
+        });
+        assert!(chain.validate_tx(&tx));
+
+        let tx = Transaction::new(TransactionData {
+            inputs: vec![],
+            outputs: vec![Output {
+                value: 5000,
+                pubkey: key_2.public_key(),
+            }],
+        });
+        assert!(!chain.validate_tx(&tx));
+
+        let tx = Transaction::new(TransactionData {
+            inputs: vec![Input {
+                hash: coinbase.hash.clone(),
+                index: 0,
+                signature: key_1.sign(coinbase.hash.digest()),
+            }],
+            outputs: vec![],
+        });
+        assert!(!chain.validate_tx(&tx));
+
+        let tx = Transaction::new(TransactionData {
+            inputs: vec![Input {
+                hash: coinbase.hash.clone(),
+                index: 0,
+                signature: key_2.sign(coinbase.hash.digest()),
+            }],
+            outputs: vec![Output {
+                value: 5000,
+                pubkey: key_2.public_key(),
+            }],
+        });
+        assert!(!chain.validate_tx(&tx));
+
+        let tx = Transaction::new(TransactionData {
+            inputs: vec![Input {
+                hash: coinbase.hash.clone(),
+                index: 0,
+                signature: key_1.sign(coinbase.hash.digest()),
+            }],
+            outputs: vec![Output {
+                value: 0,
+                pubkey: key_2.public_key(),
+            }],
+        });
+        assert!(!chain.validate_tx(&tx));
+
+        let tx = Transaction::new(TransactionData {
+            inputs: vec![Input {
+                hash: coinbase.hash.clone(),
+                index: 0,
+                signature: key_1.sign(coinbase.hash.digest()),
+            }],
+            outputs: vec![Output {
+                value: chain.rules.coins_per_block + 1,
+                pubkey: key_2.public_key(),
+            }],
+        });
+        assert!(!chain.validate_tx(&tx));
+    }
+
+    #[test]
+    fn validate_coinbase_tx() {
+        let key = KeyPair::new();
+        let chain = Chain::new(&key.public_key());
+
+        let coinbase = &chain.chain.list[0].data.transactions[0];
+        assert!(chain.validate_coinbase_tx(&coinbase));
+
+        let tx = Transaction {
+            hash: Hash::new(b"test"),
+            data: coinbase.data.clone(),
+        };
+        assert!(!chain.validate_coinbase_tx(&tx));
+
+        let tx = Transaction::new(TransactionData {
+            inputs: vec![],
+            outputs: vec![Output {
+                value: chain.rules.coins_per_block,
+                pubkey: key.public_key(),
+            }],
+        });
+        assert!(chain.validate_coinbase_tx(&tx));
+
+        let tx = Transaction::new(TransactionData {
+            inputs: vec![],
+            outputs: vec![Output {
+                value: chain.rules.coins_per_block + 1,
+                pubkey: key.public_key(),
+            }],
+        });
+        assert!(!chain.validate_coinbase_tx(&tx));
+
+        let tx = Transaction::new(TransactionData {
+            inputs: vec![],
+            outputs: vec![],
+        });
+        assert!(!chain.validate_coinbase_tx(&tx));
+    }
 }
