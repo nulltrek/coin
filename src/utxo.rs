@@ -1,5 +1,5 @@
 use crate::types::hash::Hash;
-use crate::types::keys::{KeyPair, Signature};
+use crate::types::keys::KeyPair;
 use crate::types::transaction::Input;
 
 #[derive(PartialEq, Debug)]
