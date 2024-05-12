@@ -11,20 +11,26 @@ pub struct BlockData {
     pub transactions: Vec<Transaction>,
 }
 
+pub fn compute_top_hash(transactions: &[Transaction]) -> Hash {
+    let digest_list: Vec<Vec<u8>> = transactions
+        .iter()
+        .map(|val| val.hash.digest().to_vec())
+        .collect();
+    Hash::new(&digest_list.concat().as_slice())
+}
+
 impl BlockData {
     pub fn new(prev_hash: Hash, nonce: u32, transactions: Vec<Transaction>) -> BlockData {
-        let digest_list: Vec<Vec<u8>> = transactions
-            .iter()
-            .map(|val| val.hash.digest().to_vec())
-            .collect();
         BlockData {
-            prev_hash: prev_hash,
+            prev_hash,
             nonce,
-            top_hash: Hash::new(&digest_list.concat().as_slice()),
+            top_hash: compute_top_hash(&transactions),
             transactions,
         }
     }
 }
+
+impl ByteIO for BlockData {}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Block {
@@ -39,6 +45,15 @@ impl Block {
             hash: Hash::new(bytes.as_slice()),
             data: block_data,
         }
+    }
+
+    pub fn is_hash_valid(&self) -> bool {
+        let bytes: Vec<u8> = self.data.into_bytes();
+        return Hash::new(bytes.as_slice()).digest() == self.hash.digest();
+    }
+
+    pub fn is_top_hash_valid(&self) -> bool {
+        compute_top_hash(&self.data.transactions) == self.data.top_hash
     }
 }
 

@@ -1,13 +1,53 @@
 use crate::traits::io::{ByteIO, FileIO};
 use crate::types::block::Block;
 use crate::types::hash::Hash;
-use crate::types::transaction::Transaction;
+use crate::types::transaction::{Output, Transaction};
 use serde::{Deserialize, Serialize};
+use std::ops::Add;
 use std::slice::Iter;
 
 #[derive(Debug)]
 pub enum BlockchainError {
     CannotAddBlock,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct TransactionValue {
+    pub input: u64,
+    pub output: u64,
+    pub fees: u64,
+}
+
+impl Default for TransactionValue {
+    fn default() -> TransactionValue {
+        TransactionValue {
+            input: 0,
+            output: 0,
+            fees: 0,
+        }
+    }
+}
+
+impl TransactionValue {
+    pub fn new(input: u64, output: u64, fees: u64) -> TransactionValue {
+        TransactionValue {
+            input,
+            output,
+            fees,
+        }
+    }
+}
+
+impl Add for TransactionValue {
+    type Output = TransactionValue;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        TransactionValue {
+            input: self.input + rhs.input,
+            output: self.output + rhs.output,
+            fees: self.fees + rhs.fees,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -26,6 +66,10 @@ impl Blockchain {
         return self.list.len();
     }
 
+    pub fn iter(&self) -> Iter<'_, Block> {
+        self.list.iter()
+    }
+
     pub fn append(&mut self, block: Block) -> Result<usize, BlockchainError> {
         if block.data.prev_hash == self.list[self.list.len() - 1].hash {
             self.list.push(block);
@@ -39,6 +83,10 @@ impl Blockchain {
             return None;
         }
         Some(&self.list[height])
+    }
+
+    pub fn get_last_block(&self) -> &Block {
+        &self.list[self.list.len() - 1]
     }
 
     pub fn query_block(&self, hash: &Hash) -> Option<(usize, &Block)> {
@@ -61,8 +109,54 @@ impl Blockchain {
         return None;
     }
 
-    pub fn iter(&self) -> Iter<'_, Block> {
-        self.list.iter()
+    pub fn get_tx_input_value(&self, tx: &Transaction) -> Option<u64> {
+        let mut value: u64 = 0;
+        for input in &tx.data.inputs {
+            let result = self.query_tx(&input.hash);
+            if result.is_none() {
+                return None;
+            }
+            let (_, tx) = result.unwrap();
+            if tx.data.outputs.len() <= input.index as usize {
+                return None;
+            }
+            value += tx.data.outputs[input.index as usize].value;
+        }
+        Some(value)
+    }
+
+    pub fn get_tx_output_value(outputs: &Vec<Output>) -> u64 {
+        outputs.iter().fold(0, |acc, o| acc + o.value)
+    }
+
+    pub fn get_tx_value(&self, tx: &Transaction) -> Option<TransactionValue> {
+        let input: u64 = match self.get_tx_input_value(tx) {
+            Some(value) => value,
+            None => return None,
+        };
+        let output = Self::get_tx_output_value(&tx.data.outputs);
+        if input > 0 && output > input {
+            return None;
+        }
+        let fees = if input == 0 { 0 } else { input - output };
+        Some(TransactionValue::new(input, output, fees))
+    }
+
+    pub fn get_block_value(&self, block: &Block) -> Option<TransactionValue> {
+        let mut acc = TransactionValue::default();
+        for tx in block
+            .data
+            .transactions
+            .iter()
+            .filter(|tx| !tx.is_coinbase())
+        {
+            let result = self.get_tx_value(tx);
+            if result.is_none() {
+                return None;
+            }
+            acc = acc + result.unwrap();
+        }
+        Some(acc)
     }
 }
 
@@ -73,7 +167,11 @@ impl FileIO for Blockchain {}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::block::BlockData;
+    use crate::types::keys::KeyPair;
     use crate::types::testing::BlockGen;
+    use crate::types::transaction::{Input, TransactionData};
+    use crate::utils::*;
 
     #[test]
     fn add_block() {
@@ -163,5 +261,135 @@ mod tests {
 
         let result = chain.query_tx(&Hash::new(b"nothing"));
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn tx_output_value() {
+        let key = KeyPair::new();
+        let tx = Transaction::new(TransactionData {
+            inputs: Vec::new(),
+            outputs: vec![Output {
+                value: 10000,
+                pubkey: key.public_key().clone(),
+            }],
+        });
+
+        assert_eq!(Blockchain::get_tx_output_value(&tx.data.outputs), 10000);
+
+        let tx = Transaction::new(TransactionData {
+            inputs: vec![Input {
+                hash: Hash::new(b"test"),
+                index: 0,
+                signature: key.sign(b"test"),
+            }],
+            outputs: vec![
+                Output {
+                    value: 10,
+                    pubkey: key.public_key(),
+                },
+                Output {
+                    value: 5,
+                    pubkey: key.public_key(),
+                },
+                Output {
+                    value: 62,
+                    pubkey: key.public_key(),
+                },
+            ],
+        });
+        assert_eq!(Blockchain::get_tx_output_value(&tx.data.outputs), 77);
+    }
+
+    #[test]
+    fn tx_get_value() {
+        let coinbase_value: u64 = 10000;
+        let key = KeyPair::new();
+        let chain = Blockchain::new(new_genesis_block(&key.public_key(), coinbase_value));
+        let coinbase = &chain.list[0].data.transactions[0];
+
+        let make_tx = |hash: &Hash, value: u64| {
+            Transaction::new(TransactionData {
+                inputs: vec![Input {
+                    hash: hash.clone(),
+                    index: 0,
+                    signature: key.sign(hash.digest()),
+                }],
+                outputs: vec![Output {
+                    value: value,
+                    pubkey: key.public_key(),
+                }],
+            })
+        };
+
+        let tx = make_tx(&coinbase.hash, 5000);
+        let value = chain.get_tx_value(&tx);
+        assert!(value.is_some());
+        assert_eq!(
+            chain.get_tx_value(&tx).unwrap(),
+            TransactionValue {
+                input: coinbase_value,
+                output: 5000,
+                fees: coinbase_value - 5000,
+            }
+        );
+
+        let tx = make_tx(&coinbase.hash, coinbase_value);
+        let value = chain.get_tx_value(&tx);
+        assert!(value.is_some());
+        assert_eq!(
+            chain.get_tx_value(&tx).unwrap(),
+            TransactionValue {
+                input: coinbase_value,
+                output: coinbase_value,
+                fees: 0,
+            }
+        );
+
+        let tx = make_tx(&coinbase.hash, coinbase_value + 1);
+        let value = chain.get_tx_value(&tx);
+        assert!(value.is_none());
+    }
+
+    #[test]
+    fn block_value() {
+        let coinbase_value: u64 = 10000;
+        let key = KeyPair::new();
+
+        let genesis = new_genesis_block(&key.public_key(), coinbase_value);
+        let genesis_hash = genesis.hash.clone();
+        let coinbase_hash = genesis.data.transactions[0].hash.clone();
+
+        let chain = Blockchain::new(genesis);
+
+        let next = Block::new(BlockData::new(
+            genesis_hash,
+            0,
+            vec![
+                Transaction::new(TransactionData {
+                    inputs: vec![Input {
+                        hash: coinbase_hash.clone(),
+                        index: 0,
+                        signature: key.sign(coinbase_hash.digest()),
+                    }],
+                    outputs: vec![
+                        Output {
+                            value: 5000,
+                            pubkey: key.public_key(),
+                        },
+                        Output {
+                            value: 4000,
+                            pubkey: key.public_key(),
+                        },
+                    ],
+                }),
+                new_coinbase_tx(&key.public_key(), coinbase_value),
+            ],
+        ));
+
+        let value = chain.get_block_value(&next).unwrap();
+
+        assert_eq!(value.input, coinbase_value);
+        assert_eq!(value.output, 9000);
+        assert_eq!(value.fees, 1000);
     }
 }

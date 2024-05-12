@@ -43,6 +43,10 @@ impl Transaction {
         let bytes: Vec<u8> = self.data.into_bytes();
         return Hash::new(bytes.as_slice()).digest() == self.hash.digest();
     }
+
+    pub fn is_coinbase(&self) -> bool {
+        self.data.inputs.len() == 0
+    }
 }
 
 impl ByteIO for Transaction {}
@@ -86,6 +90,35 @@ mod tests {
         let tx2 = Transaction::new(tx_data_2);
 
         assert_eq!(tx1.hash, tx2.hash)
+    }
+
+    #[test]
+    fn is_coinbase() {
+        let key = KeyPair::new();
+
+        let tx = Transaction::new(TransactionData {
+            inputs: vec![],
+            outputs: vec![Output {
+                value: 1,
+                pubkey: key.public_key(),
+            }],
+        });
+
+        assert!(tx.is_coinbase());
+
+        let tx = Transaction::new(TransactionData {
+            inputs: vec![Input {
+                hash: Hash::new(b"test"),
+                index: 0,
+                signature: key.sign(b"test"),
+            }],
+            outputs: vec![Output {
+                value: 1,
+                pubkey: key.public_key(),
+            }],
+        });
+
+        assert!(!tx.is_coinbase());
     }
 
     #[test]
