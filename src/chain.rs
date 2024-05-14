@@ -134,16 +134,16 @@ impl Chain {
     /*
      * A block is valid if:
      * - Its hash is valid
-     * - The block points to the last block on chain
+     * - The block points to the previous block
      * - There is at least one transaction
      * - If there is only one transaction, it's a regular transaction
      * - The top hash is valid
      * - All the transactions except the last one are valid regular transactions
      * - The last transaction is a valid coinbase transaction or a valid regular transaction
      */
-    fn validate_block(&self, block: &Block) -> bool {
+    fn validate_block_with_previous(&self, block: &Block, previous: &Block) -> bool {
         return block.is_hash_valid()
-            && block.data.prev_hash == self.chain.get_last_block().hash
+            && block.data.prev_hash == previous.hash
             && block.data.transactions.len() > 0
             && match block.data.transactions.len() {
                 1 => !block.data.transactions.last().unwrap().is_coinbase(),
@@ -155,6 +155,25 @@ impl Chain {
                 .fold(true, |acc, tx| acc && self.validate_tx(tx))
             && (self.validate_coinbase_tx(block, block.data.transactions.last().unwrap())
                 || self.validate_tx(block.data.transactions.last().unwrap()));
+    }
+
+    pub fn validate_block(&self, block: &Block) -> bool {
+        self.validate_block_with_previous(block, self.chain.get_last_block())
+    }
+
+    /*
+     * A chain is valid if:
+     * - The genesis block is valid
+     * - All the remaining blocks are valid
+     */
+    pub fn validate_chain(&self) -> bool {
+        return self.validate_genesis()
+            && self.chain.list[1..]
+                .iter()
+                .enumerate()
+                .fold(true, |acc, (i, block)| {
+                    acc && self.validate_block_with_previous(block, &self.chain.list[i])
+                });
     }
 }
 
@@ -284,7 +303,7 @@ mod tests {
         let chain = Chain::new(&key.public_key());
 
         let genesis = &chain.chain.list[0];
-        let coinbase = &chain.chain.list[0].data.transactions[0];
+        let coinbase = &genesis.data.transactions[0];
         assert!(chain.validate_coinbase_tx(genesis, &coinbase));
 
         let tx = Transaction {
@@ -361,7 +380,7 @@ mod tests {
 
         let chain = Chain::new(&key_1.public_key());
         let last_block = chain.chain.get_last_block();
-        let last_coinbase = &chain.chain.list[0].data.transactions[0];
+        let last_coinbase = &last_block.data.transactions[0];
 
         let valid_tx = Transaction::new(TransactionData {
             inputs: vec![Input {
@@ -428,5 +447,43 @@ mod tests {
             vec![valid_tx.clone(), valid_tx.clone()],
         ));
         assert!(chain.validate_block(&block));
+    }
+
+    #[test]
+    fn validate_chain() {
+        let key_1 = KeyPair::new();
+        let key_2 = KeyPair::new();
+
+        let mut chain = Chain::new(&key_1.public_key());
+        let last_block = chain.chain.get_last_block();
+        let last_coinbase = &last_block.data.transactions[0];
+
+        let valid_tx = Transaction::new(TransactionData {
+            inputs: vec![Input {
+                hash: last_coinbase.hash.clone(),
+                index: 0,
+                signature: key_1.sign(last_coinbase.hash.digest()),
+            }],
+            outputs: vec![Output {
+                value: 5000,
+                pubkey: key_2.public_key(),
+            }],
+        });
+        let valid_coinbase_tx = Transaction::new(TransactionData {
+            inputs: vec![],
+            outputs: vec![Output {
+                value: chain.rules.coins_per_block,
+                pubkey: key_1.public_key(),
+            }],
+        });
+
+        let result = chain.chain.append(Block::new(BlockData::new(
+            last_block.hash.clone(),
+            0,
+            vec![valid_tx, valid_coinbase_tx.clone()],
+        )));
+
+        assert!(result.is_ok());
+        assert!(chain.validate_chain());
     }
 }
