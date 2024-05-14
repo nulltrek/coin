@@ -8,7 +8,7 @@ use std::slice::Iter;
 
 #[derive(Debug)]
 pub enum BlockchainError {
-    CannotAddBlock,
+    InvalidPrevHash,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -75,7 +75,7 @@ impl Blockchain {
             self.list.push(block);
             return Ok(self.list.len() - 1);
         }
-        Err(BlockchainError::CannotAddBlock)
+        Err(BlockchainError::InvalidPrevHash)
     }
 
     pub fn get_block(&self, height: usize) -> Option<&Block> {

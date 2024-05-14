@@ -1,7 +1,7 @@
 use crate::consensus::ConsensusRules;
 use crate::traits::io::{ByteIO, FileIO};
 use crate::types::block::Block;
-use crate::types::blockchain::Blockchain;
+use crate::types::blockchain::{Blockchain, BlockchainError};
 use crate::types::keys::PublicKey;
 use crate::types::transaction::{Output, Transaction};
 use crate::utils::*;
@@ -9,10 +9,11 @@ use crate::utxo::Utxo;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub enum ChainOpError {
     TargetNotSatisfied,
     InvalidBlock,
+    InvalidPrevHash,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -24,6 +25,14 @@ pub struct Chain {
 impl Chain {
     pub fn new(pubkey: &PublicKey) -> Chain {
         let rules = ConsensusRules::default();
+        let genesis = new_genesis_block(pubkey, rules.coins_per_block);
+        Chain {
+            rules,
+            chain: Blockchain::new(genesis),
+        }
+    }
+
+    pub fn new_with_consensus(pubkey: &PublicKey, rules: ConsensusRules) -> Chain {
         let genesis = new_genesis_block(pubkey, rules.coins_per_block);
         Chain {
             rules,
@@ -175,6 +184,25 @@ impl Chain {
                     acc && self.validate_block_with_previous(block, &self.chain.list[i])
                 });
     }
+
+    /*
+     * A block can be added to the blockchain if:
+     * - Its hash satisfies the consensus target
+     * - It's a valid block
+     */
+    pub fn add_block(&mut self, block: Block) -> Result<usize, ChainOpError> {
+        if !self.rules.validate_target(&block.hash) {
+            return Err(ChainOpError::TargetNotSatisfied);
+        }
+        if !self.validate_block(&block) {
+            return Err(ChainOpError::InvalidBlock);
+        }
+
+        match self.chain.append(block) {
+            Err(BlockchainError::InvalidPrevHash) => Err(ChainOpError::InvalidPrevHash),
+            Ok(value) => Ok(value),
+        }
+    }
 }
 
 impl ByteIO for Chain {}
@@ -187,6 +215,7 @@ mod tests {
     use crate::types::hash::Hash;
     use crate::types::keys::KeyPair;
     use crate::types::transaction::{Input, Output, TransactionData};
+    use ethnum::U256;
 
     #[test]
     fn validate_genesis() {
@@ -485,5 +514,56 @@ mod tests {
 
         assert!(result.is_ok());
         assert!(chain.validate_chain());
+    }
+
+    #[test]
+    fn add_block() {
+        let key_1 = KeyPair::new();
+        let key_2 = KeyPair::new();
+
+        let mut chain =
+            Chain::new_with_consensus(&key_1.public_key(), ConsensusRules::new(U256::from(1_u32)));
+        let last_block = chain.chain.get_last_block();
+        let last_coinbase = &last_block.data.transactions[0];
+        let last_block_hash = last_block.hash.clone();
+
+        let valid_tx = Transaction::new(TransactionData {
+            inputs: vec![Input {
+                hash: last_coinbase.hash.clone(),
+                index: 0,
+                signature: key_1.sign(last_coinbase.hash.digest()),
+            }],
+            outputs: vec![Output {
+                value: 5000,
+                pubkey: key_2.public_key(),
+            }],
+        });
+        let valid_coinbase_tx = Transaction::new(TransactionData {
+            inputs: vec![],
+            outputs: vec![Output {
+                value: chain.rules.coins_per_block,
+                pubkey: key_1.public_key(),
+            }],
+        });
+
+        let result = chain.add_block(Block::new(BlockData::new(
+            last_block_hash.clone(),
+            0,
+            vec![valid_tx.clone(), valid_coinbase_tx.clone()],
+        )));
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), ChainOpError::TargetNotSatisfied);
+
+        chain.rules = ConsensusRules::default();
+
+        let result = chain.add_block(Block::new(BlockData::new(
+            last_block_hash,
+            0,
+            vec![valid_tx, valid_coinbase_tx],
+        )));
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 1);
     }
 }
