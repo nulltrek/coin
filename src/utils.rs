@@ -66,7 +66,6 @@ mod tests {
     use super::*;
     use crate::chain::Chain;
     use crate::types::keys::KeyPair;
-    use crate::types::transaction::Input;
 
     #[test]
     fn tx_creation() {
