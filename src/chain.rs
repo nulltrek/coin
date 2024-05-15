@@ -547,7 +547,7 @@ mod tests {
         });
 
         let result = chain.add_block(Block::new(BlockData::new(
-            last_block_hash.clone(),
+            Hash::new(&U256::from(2_u32).to_be_bytes()),
             0,
             vec![valid_tx.clone(), valid_coinbase_tx.clone()],
         )));

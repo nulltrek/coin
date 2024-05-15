@@ -27,7 +27,7 @@ impl ConsensusRules {
     }
 
     pub fn validate_target(&self, hash: &Hash) -> bool {
-        U256::from_be_bytes(hash.digest().clone()) < U256::from_be_bytes(self.target)
+        U256::from_be_bytes(hash.digest().clone()) <= U256::from_be_bytes(self.target)
     }
 }
 
