@@ -2,6 +2,7 @@ use crate::traits::io::ByteIO;
 use ethnum::U256;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::fmt;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Hash {
@@ -29,6 +30,22 @@ impl Hash {
 impl Default for Hash {
     fn default() -> Hash {
         Hash { value: [0; 32] }
+    }
+}
+
+impl fmt::Display for Hash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.value
+                .iter()
+                .map(|e| format!("{:02x}", e))
+                .fold(String::new(), |mut acc, e| {
+                    acc.push_str(&e);
+                    acc
+                })
+        )
     }
 }
 
@@ -70,5 +87,19 @@ mod tests {
             79, 27, 43, 11, 130, 44, 209, 93, 108, 21, 176, 240, 10, 8,
         ];
         assert!(!Hash::from_bytes(&bytes).unwrap().is_zero());
+    }
+
+    #[test]
+    fn display() {
+        let bytes = vec![
+            159, 134, 208, 129, 136, 76, 125, 101, 154, 47, 234, 160, 197, 90, 208, 21, 163, 191,
+            79, 27, 43, 11, 130, 44, 209, 93, 108, 21, 176, 240, 10, 8,
+        ];
+        let hash = Hash::from_bytes(&bytes).unwrap();
+
+        assert_eq!(
+            format!("{}", hash),
+            "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+        );
     }
 }
