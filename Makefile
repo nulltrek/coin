@@ -1,7 +1,7 @@
 .PHONY: test
 test:
 	cargo fmt
-	cargo test
+	cargo test -- --nocapture
 
 .PHONY: build
 build:
