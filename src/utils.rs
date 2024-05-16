@@ -32,10 +32,12 @@ pub fn new_tx(
     let value = Blockchain::get_tx_output_value(&outputs);
     let selection = Utxo::collect(utxos, value)?;
     let inputs = selection.list.into_inputs(key);
-    outputs.push(Output {
-        value: selection.change,
-        pubkey: key.public_key(),
-    });
+    if selection.change != 0 {
+        outputs.push(Output {
+            value: selection.change,
+            pubkey: key.public_key(),
+        });
+    }
     Ok(Transaction::new(TransactionData { inputs, outputs }))
 }
 
@@ -104,6 +106,22 @@ mod tests {
         assert_eq!(tx.data.outputs[0].pubkey, key_2.public_key());
         assert_eq!(tx.data.outputs[1].value, 3000);
         assert_eq!(tx.data.outputs[1].pubkey, key_1.public_key());
+
+        let tx = new_tx(
+            &key_1,
+            &utxos,
+            vec![Output {
+                value: 10000,
+                pubkey: key_2.public_key().clone(),
+            }],
+        );
+
+        assert!(tx.is_ok());
+
+        let tx = tx.unwrap();
+        assert_eq!(tx.data.outputs.len(), 1);
+        assert_eq!(tx.data.outputs[0].value, 10000);
+        assert_eq!(tx.data.outputs[0].pubkey, key_2.public_key());
     }
 
     #[test]
