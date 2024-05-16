@@ -3,10 +3,12 @@ use crate::types::hash::Hash;
 use crate::types::transaction::Transaction;
 use serde::{Deserialize, Serialize};
 
+pub type Nonce = u32;
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct BlockData {
     pub prev_hash: Hash,
-    pub nonce: u32,
+    pub nonce: Nonce,
     pub top_hash: Hash,
     pub transactions: Vec<Transaction>,
 }
@@ -20,7 +22,7 @@ pub fn compute_top_hash(transactions: &[Transaction]) -> Hash {
 }
 
 impl BlockData {
-    pub fn new(prev_hash: Hash, nonce: u32, transactions: Vec<Transaction>) -> BlockData {
+    pub fn new(prev_hash: Hash, nonce: Nonce, transactions: Vec<Transaction>) -> BlockData {
         BlockData {
             prev_hash,
             nonce,
