@@ -1,12 +1,13 @@
 use crate::traits::io::{ByteIO, FileIO};
 use crate::types::hash::Hash;
+use crate::types::transaction::Value;
 use ethnum::U256;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ConsensusRules {
     pub target: [u8; 32],
-    pub coins_per_block: u64,
+    pub coins_per_block: Value,
 }
 
 impl Default for ConsensusRules {

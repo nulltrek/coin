@@ -1,12 +1,13 @@
-use crate::types::block::{Block, BlockData};
+use crate::chain::Chain;
+use crate::types::block::{Block, BlockData, Nonce};
 use crate::types::blockchain::Blockchain;
 use crate::types::hash::Hash;
 use crate::types::keys::KeyPair;
 use crate::types::keys::{PublicKey, Verifier};
-use crate::types::transaction::{Output, Transaction, TransactionData};
+use crate::types::transaction::{Output, Transaction, TransactionData, Value};
 use crate::utxo::{IntoInputs, Utxo, UtxoError};
 
-pub fn new_coinbase_tx(pubkey: &PublicKey, value: u64) -> Transaction {
+pub fn new_coinbase_tx(pubkey: &PublicKey, value: Value) -> Transaction {
     Transaction::new(TransactionData {
         inputs: Vec::new(),
         outputs: vec![Output {
@@ -16,7 +17,7 @@ pub fn new_coinbase_tx(pubkey: &PublicKey, value: u64) -> Transaction {
     })
 }
 
-pub fn new_genesis_block(pubkey: &PublicKey, coinbase_value: u64) -> Block {
+pub fn new_genesis_block(pubkey: &PublicKey, coinbase_value: Value) -> Block {
     Block::new(BlockData::new(
         Hash::default(),
         0,

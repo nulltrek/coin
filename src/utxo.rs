@@ -1,6 +1,7 @@
 use crate::types::hash::Hash;
 use crate::types::keys::KeyPair;
 use crate::types::transaction::Input;
+use crate::types::transaction::Value;
 
 #[derive(PartialEq, Debug)]
 pub enum UtxoError {
@@ -11,18 +12,18 @@ pub enum UtxoError {
 
 pub struct UtxoSelection<'a> {
     pub list: &'a [Utxo],
-    pub change: u64,
+    pub change: Value,
 }
 
 #[derive(Eq, PartialEq, Hash)]
 pub struct Utxo {
     pub hash: Hash,
     pub output: u32,
-    pub value: u64,
+    pub value: Value,
 }
 
 impl Utxo {
-    pub fn new(hash: Hash, output: u32, value: u64) -> Utxo {
+    pub fn new(hash: Hash, output: u32, value: Value) -> Utxo {
         Utxo {
             hash,
             output,
@@ -30,12 +31,12 @@ impl Utxo {
         }
     }
 
-    pub fn collect(utxos: &[Utxo], value: u64) -> Result<UtxoSelection, UtxoError> {
+    pub fn collect(utxos: &[Utxo], value: Value) -> Result<UtxoSelection, UtxoError> {
         if value == 0 {
             return Err(UtxoError::InvalidValue);
         }
 
-        let mut acc: u64 = 0;
+        let mut acc: Value = 0;
         let mut last: usize = 0;
         for (idx, utxo) in utxos.iter().enumerate() {
             last = idx;
