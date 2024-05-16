@@ -1,7 +1,7 @@
 use crate::traits::io::{ByteIO, FileIO};
 use crate::types::block::Block;
 use crate::types::hash::Hash;
-use crate::types::transaction::{Output, Transaction};
+use crate::types::transaction::{Output, Transaction, Value};
 use serde::{Deserialize, Serialize};
 use std::ops::Add;
 use std::slice::Iter;
@@ -13,9 +13,9 @@ pub enum BlockchainError {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct TransactionValue {
-    pub input: u64,
-    pub output: u64,
-    pub fees: u64,
+    pub input: Value,
+    pub output: Value,
+    pub fees: Value,
 }
 
 impl Default for TransactionValue {
@@ -29,7 +29,7 @@ impl Default for TransactionValue {
 }
 
 impl TransactionValue {
-    pub fn new(input: u64, output: u64, fees: u64) -> TransactionValue {
+    pub fn new(input: Value, output: Value, fees: Value) -> TransactionValue {
         TransactionValue {
             input,
             output,
@@ -109,8 +109,8 @@ impl Blockchain {
         return None;
     }
 
-    pub fn get_tx_input_value(&self, tx: &Transaction) -> Option<u64> {
-        let mut value: u64 = 0;
+    pub fn get_tx_input_value(&self, tx: &Transaction) -> Option<Value> {
+        let mut value: Value = 0;
         for input in &tx.data.inputs {
             let result = self.query_tx(&input.hash);
             if result.is_none() {
@@ -125,12 +125,12 @@ impl Blockchain {
         Some(value)
     }
 
-    pub fn get_tx_output_value(outputs: &Vec<Output>) -> u64 {
+    pub fn get_tx_output_value(outputs: &Vec<Output>) -> Value {
         outputs.iter().fold(0, |acc, o| acc + o.value)
     }
 
     pub fn get_tx_value(&self, tx: &Transaction) -> Option<TransactionValue> {
-        let input: u64 = match self.get_tx_input_value(tx) {
+        let input: Value = match self.get_tx_input_value(tx) {
             Some(value) => value,
             None => return None,
         };
@@ -302,12 +302,12 @@ mod tests {
 
     #[test]
     fn tx_get_value() {
-        let coinbase_value: u64 = 10000;
+        let coinbase_value: Value = 10000;
         let key = KeyPair::new();
         let chain = Blockchain::new(new_genesis_block(&key.public_key(), coinbase_value));
         let coinbase = &chain.list[0].data.transactions[0];
 
-        let make_tx = |hash: &Hash, value: u64| {
+        let make_tx = |hash: &Hash, value: Value| {
             Transaction::new(TransactionData {
                 inputs: vec![Input {
                     hash: hash.clone(),
@@ -352,7 +352,7 @@ mod tests {
 
     #[test]
     fn block_value() {
-        let coinbase_value: u64 = 10000;
+        let coinbase_value: Value = 10000;
         let key = KeyPair::new();
 
         let genesis = new_genesis_block(&key.public_key(), coinbase_value);

@@ -3,6 +3,8 @@ use crate::types::hash::Hash;
 use crate::types::keys::{PublicKey, Signature};
 use serde::{Deserialize, Serialize};
 
+pub type Value = u64;
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Input {
     pub hash: Hash,
@@ -12,7 +14,7 @@ pub struct Input {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Output {
-    pub value: u64,
+    pub value: Value,
     pub pubkey: PublicKey,
 }
 

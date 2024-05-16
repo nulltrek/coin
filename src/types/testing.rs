@@ -1,7 +1,7 @@
 use crate::types::block::{Block, BlockData};
 use crate::types::hash::Hash;
 use crate::types::keys::KeyPair;
-use crate::types::transaction::{Input, Output, Transaction, TransactionData};
+use crate::types::transaction::{Input, Output, Transaction, TransactionData, Value};
 
 pub struct BlockGen {
     valid: bool,
@@ -9,7 +9,7 @@ pub struct BlockGen {
     index: usize,
     prev_hash: Hash,
     pub output_count: u32,
-    output_value: u64,
+    output_value: Value,
 }
 
 impl Default for BlockGen {
@@ -26,7 +26,7 @@ impl Default for BlockGen {
 }
 
 impl BlockGen {
-    pub fn new(valid: bool, output_count: u32, output_value: u64) -> BlockGen {
+    pub fn new(valid: bool, output_count: u32, output_value: Value) -> BlockGen {
         BlockGen {
             valid,
             output_count,
