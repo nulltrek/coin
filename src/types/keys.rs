@@ -5,6 +5,7 @@ use ed25519_dalek::{
 };
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 pub trait Verifier {
     fn verify(&self, message: &[u8], signature: &Signature) -> bool;
@@ -12,15 +13,34 @@ pub trait Verifier {
 
 pub type PrivateKey = [u8; SECRET_KEY_LENGTH];
 
-pub type PublicKey = [u8; SECRET_KEY_LENGTH];
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+pub struct PublicKey {
+    value: [u8; SECRET_KEY_LENGTH],
+}
 
 impl Verifier for PublicKey {
     fn verify(&self, message: &[u8], signature: &Signature) -> bool {
-        let verifying_key = match VerifyingKey::from_bytes(self) {
+        let verifying_key = match VerifyingKey::from_bytes(&self.value) {
             Ok(key) => key,
             Err(_) => return false,
         };
         verifying_key.verify(message, &signature.0).is_ok()
+    }
+}
+
+impl fmt::Debug for PublicKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.value
+                .iter()
+                .map(|e| format!("{:02x}", e))
+                .fold(String::new(), |mut acc, e| {
+                    acc.push_str(&e);
+                    acc
+                })
+        )
     }
 }
 
@@ -41,7 +61,9 @@ impl KeyPair {
     }
 
     pub fn public_key(&self) -> PublicKey {
-        self.0.verifying_key().to_bytes()
+        PublicKey {
+            value: self.0.verifying_key().to_bytes(),
+        }
     }
 
     pub fn sign(&self, message: &[u8]) -> Signature {
