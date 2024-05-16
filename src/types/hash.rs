@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fmt;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
 pub struct Hash {
     value: [u8; Hash::SIZE],
 }
@@ -30,6 +30,22 @@ impl Hash {
 impl Default for Hash {
     fn default() -> Hash {
         Hash { value: [0; 32] }
+    }
+}
+
+impl fmt::Debug for Hash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.value
+                .iter()
+                .map(|e| format!("{:02x}", e))
+                .fold(String::new(), |mut acc, e| {
+                    acc.push_str(&e);
+                    acc
+                })
+        )
     }
 }
 
