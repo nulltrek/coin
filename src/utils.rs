@@ -64,10 +64,17 @@ pub fn verify_tx_signatures(chain: &Blockchain, tx: &Transaction) -> bool {
     return true;
 }
 
+pub fn new_block(chain: &Chain, nonce: Nonce, transactions: Vec<Transaction>) -> Block {
+    Block::new(BlockData::new(
+        chain.get_last_block().hash.clone(),
+        nonce,
+        transactions,
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chain::Chain;
     use crate::types::keys::KeyPair;
 
     #[test]
