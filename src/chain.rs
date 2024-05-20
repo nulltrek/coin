@@ -2,12 +2,72 @@ use crate::consensus::ConsensusRules;
 use crate::traits::io::{ByteIO, FileIO};
 use crate::types::block::Block;
 use crate::types::blockchain::{Blockchain, BlockchainError};
+use crate::types::hash::Hash;
 use crate::types::keys::PublicKey;
 use crate::types::transaction::{Output, Transaction};
 use crate::utils::*;
 use crate::utxo::Utxo;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+#[derive(Debug, Clone)]
+pub struct UtxoPool {
+    pub utxos: HashMap<(Hash, u32), Output>,
+}
+
+impl UtxoPool {
+    pub fn new(chain: &Blockchain) -> UtxoPool {
+        let mut pool = UtxoPool {
+            utxos: HashMap::new(),
+        };
+        for block in chain.iter() {
+            pool.update(block);
+        }
+        pool
+    }
+
+    pub fn get_with_pred<P>(&self, pred: P) -> Vec<Utxo>
+    where
+        P: Fn(&Output) -> bool,
+    {
+        self.utxos
+            .iter()
+            .filter(|(_, output)| pred(output))
+            .map(|(k, v)| Utxo::new(k.0.clone(), k.1, v.value))
+            .collect()
+    }
+
+    pub fn get_all(&self) -> Vec<Utxo> {
+        self.get_with_pred(|_| true)
+    }
+
+    pub fn get_for_key(&self, pubkey: &PublicKey) -> Vec<Utxo> {
+        self.get_with_pred(|output| output.pubkey == *pubkey)
+    }
+
+    pub fn update(&mut self, block: &Block) {
+        for tx in block.data.transactions.iter() {
+            for (index, output) in tx.data.outputs.iter().enumerate() {
+                self.utxos
+                    .insert((tx.hash.clone(), index as u32), output.clone());
+            }
+
+            for input in tx.data.inputs.iter() {
+                self.utxos.remove(&(input.hash.clone(), input.index));
+            }
+        }
+    }
+
+    pub fn is_unspent(&self, tx: &Transaction) -> bool {
+        for input in &tx.data.inputs {
+            // TODO: avoid cloning
+            if !self.utxos.contains_key(&(input.hash.clone(), input.index)) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
 
 #[derive(PartialEq, Debug)]
 pub enum ChainOpError {
@@ -16,32 +76,47 @@ pub enum ChainOpError {
     InvalidPrevHash,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct Chain {
     pub rules: ConsensusRules,
     pub chain: Blockchain,
+    utxos: UtxoPool,
 }
 
 impl Chain {
     pub fn new(pubkey: &PublicKey) -> Chain {
         let rules = ConsensusRules::default();
         let genesis = new_genesis_block(pubkey, rules.coins_per_block);
+        let chain = Blockchain::new(genesis);
+        let utxos = UtxoPool::new(&chain);
         Chain {
             rules,
-            chain: Blockchain::new(genesis),
+            chain,
+            utxos,
         }
     }
 
     pub fn new_with_consensus(pubkey: &PublicKey, rules: ConsensusRules) -> Chain {
         let genesis = new_genesis_block(pubkey, rules.coins_per_block);
+        let chain = Blockchain::new(genesis);
+        let utxos = UtxoPool::new(&chain);
         Chain {
             rules,
-            chain: Blockchain::new(genesis),
+            chain,
+            utxos,
         }
     }
 
     pub fn get_block(&self, height: usize) -> Option<&Block> {
         self.chain.list.get(height)
+    }
+
+    pub fn get_last_block(&self) -> &Block {
+        self.chain.get_last_block()
+    }
+
+    pub fn height(&self) -> usize {
+        self.chain.height()
     }
 
     /*
@@ -65,35 +140,12 @@ impl Chain {
             };
     }
 
-    fn find_utxos<P>(&self, pred: P) -> Vec<Utxo>
-    where
-        P: Fn(&Output) -> bool,
-    {
-        let mut pool = HashMap::new();
-        for block in self.chain.iter() {
-            for tx in block.data.transactions.iter() {
-                for (index, output) in tx.data.outputs.iter().enumerate() {
-                    if pred(output) {
-                        pool.insert((tx.hash.clone(), index), output.value);
-                    }
-                }
-
-                for input in tx.data.inputs.iter() {
-                    pool.remove(&(input.hash.clone(), input.index as usize));
-                }
-            }
-        }
-        pool.into_iter()
-            .map(|(k, v)| Utxo::new(k.0, k.1 as u32, v))
-            .collect()
-    }
-
     pub fn find_all_utxos(&self) -> Vec<Utxo> {
-        self.find_utxos(|_| true)
+        self.utxos.get_all()
     }
 
     pub fn find_utxos_for_key(&self, pubkey: &PublicKey) -> Vec<Utxo> {
-        self.find_utxos(|output| output.pubkey == *pubkey)
+        self.utxos.get_for_key(pubkey)
     }
 
     /*
@@ -110,6 +162,7 @@ impl Chain {
             && tx.data.inputs.len() > 0
             && tx.data.outputs.len() > 0
             && verify_tx_signatures(&self.chain, tx)
+            && self.utxos.is_unspent(tx)
             && match self.chain.get_tx_value(tx) {
                 Some(value) => value.output > 0 && value.input >= value.output,
                 None => false,
@@ -200,13 +253,32 @@ impl Chain {
 
         match self.chain.append(block) {
             Err(BlockchainError::InvalidPrevHash) => Err(ChainOpError::InvalidPrevHash),
-            Ok(value) => Ok(value),
+            Ok(value) => {
+                let block = self.get_last_block();
+                self.utxos.update(&block.clone());
+                Ok(value)
+            }
         }
     }
 }
 
-impl ByteIO for Chain {}
-impl FileIO for Chain {}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SerializableChain {
+    pub rules: ConsensusRules,
+    pub chain: Blockchain,
+}
+
+impl SerializableChain {
+    pub fn new(chain: Chain) -> SerializableChain {
+        SerializableChain {
+            rules: chain.rules,
+            chain: chain.chain,
+        }
+    }
+}
+
+impl ByteIO for SerializableChain {}
+impl FileIO for SerializableChain {}
 
 #[cfg(test)]
 mod tests {
@@ -214,7 +286,7 @@ mod tests {
     use crate::types::block::{Block, BlockData};
     use crate::types::hash::Hash;
     use crate::types::keys::KeyPair;
-    use crate::types::transaction::{Input, Output, TransactionData};
+    use crate::types::transaction::{Input, Output, TransactionData, Value};
     use ethnum::U256;
 
     #[test]
@@ -245,6 +317,40 @@ mod tests {
 
         let utxos = chain.find_utxos_for_key(&KeyPair::new().public_key());
         assert_eq!(utxos.len(), 0);
+    }
+
+    #[test]
+    fn unspent_utxos() {
+        let key = KeyPair::new();
+        let mut chain = Chain::new(&key.public_key());
+
+        let last_block = chain.chain.get_last_block();
+        let last_coinbase = &last_block.data.transactions[0];
+        let last_block_hash = last_block.hash.clone();
+
+        let tx = Transaction::new(TransactionData {
+            inputs: vec![Input {
+                hash: last_coinbase.hash.clone(),
+                index: 0,
+                signature: key.sign(last_coinbase.hash.digest()),
+            }],
+            outputs: vec![Output {
+                value: 5000,
+                pubkey: key.public_key(),
+            }],
+        });
+
+        assert!(chain.utxos.is_unspent(&tx));
+
+        let result = chain.add_block(Block::new(BlockData::new(
+            last_block_hash,
+            0,
+            vec![tx.clone()],
+        )));
+
+        assert!(result.is_ok());
+
+        assert!(!chain.utxos.is_unspent(&tx));
     }
 
     #[test]
@@ -565,5 +671,70 @@ mod tests {
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 1);
+    }
+
+    #[test]
+    fn chain_test() {
+        use rand::seq::SliceRandom;
+        use rand::thread_rng;
+
+        let keys = vec![
+            KeyPair::new(),
+            KeyPair::new(),
+            KeyPair::new(),
+            KeyPair::new(),
+            KeyPair::new(),
+        ];
+
+        let mut chain = Chain::new(&keys[0].public_key());
+
+        let iterations = 3;
+        let mut rng = thread_rng();
+        for _ in 0..iterations {
+            let accounts: Vec<(KeyPair, Vec<Utxo>, Value)> = keys.iter().map(|key: &KeyPair| {
+                let utxos = chain.find_utxos_for_key(&key.public_key());
+                let value = utxos.iter().fold(0, |acc, utxo| acc + utxo.value);
+                (key.clone(), utxos, value)
+            }).collect();
+
+            let mut transactions = Vec::new();
+            for account in &accounts {
+                println!("Account: {:?}\n Value: {}", account.0.public_key(), account.2);
+                let tx_count = 4;
+                let tx_value = account.2 / tx_count;
+                let tx_rem = account.2 % tx_count;
+
+                let tx = new_tx(
+                    &account.0,
+                    &account.1,
+                    (0..tx_count)
+                        .map(|id| Output {
+                            value: if id != tx_count - 1 {
+                                tx_value
+                            } else {
+                                tx_value + tx_rem
+                            },
+                            pubkey: accounts.choose(&mut rng).unwrap().0.public_key(),
+                        })
+                        .collect(),
+                );
+
+                if tx.is_ok() {
+                    transactions.push(tx.unwrap());
+                } else {
+                    println!("Not ok");
+                }
+            }
+
+            let block = new_block(&chain, 0, transactions);
+            println!("{:#?}", block);
+            match chain.add_block(block) {
+                Ok(height) => println!("Added block: {}", height),
+                Err(_) => println!("Block not added"),
+            }
+
+            assert_eq!(accounts.iter().fold(0, |tot, account| tot + account.2), chain.rules.coins_per_block);
+        }
+        assert_eq!(chain.height(), iterations + 1);
     }
 }
