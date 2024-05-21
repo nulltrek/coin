@@ -1,9 +1,9 @@
-.PHONY: test
-test:
+.PHONY: test-print
+test-print:
 	cargo fmt
 	cargo test -- --nocapture
 
-.PHONY: build
-build:
+.PHONY: test
+test:
 	cargo fmt
 	cargo test
