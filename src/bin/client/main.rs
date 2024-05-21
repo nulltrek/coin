@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 use coin::traits::io::FileIO;
 use coin::types::keys::KeyPair;
 use std::fs::File;
-use std::path::Path;
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(name = "Coin")]
@@ -14,26 +14,25 @@ struct Cli {
 
 #[derive(Subcommand, Clone)]
 enum Commands {
-    GenKeys { name: String },
+    #[command(about = "Generate new key pair")]
+    GenKeys { path: PathBuf },
 }
 
 fn main() {
     let cli = Cli::parse();
 
     match &cli.command {
-        Commands::GenKeys { name } => {
-            let key_pair = KeyPair::new();
-            let file_name = format!("{}.key", name);
-            let path = Path::new(&file_name);
-
+        Commands::GenKeys { path } => {
+            println!("Saving new key pair in file {}", path.display());
             match File::create_new(path) {
                 Ok(mut file) => {
-                    key_pair
-                        .to_file(&mut file)
+                    let key = KeyPair::new();
+                    println!("{:?}", key.private_key());
+                    key.to_file(&mut file)
                         .expect("Failed to save keys to file.");
                 }
-                Err(_) => {
-                    println!("Failed to open file");
+                Err(error) => {
+                    println!("Failure: {}", error);
                 }
             }
         }
