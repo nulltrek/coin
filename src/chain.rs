@@ -84,10 +84,7 @@ pub struct Chain {
 }
 
 impl Chain {
-    pub fn new(pubkey: &PublicKey) -> Chain {
-        let rules = ConsensusRules::default();
-        let genesis = new_genesis_block(pubkey, rules.coins_per_block);
-        let chain = Blockchain::new(genesis);
+    fn init(rules: ConsensusRules, chain: Blockchain) -> Chain {
         let utxos = UtxoPool::new(&chain);
         Chain {
             rules,
@@ -96,15 +93,19 @@ impl Chain {
         }
     }
 
+    pub fn new(pubkey: &PublicKey) -> Chain {
+        let rules = ConsensusRules::default();
+        let genesis = new_genesis_block(pubkey, rules.coins_per_block);
+        Self::init(rules, Blockchain::new(genesis))
+    }
+
     pub fn new_with_consensus(pubkey: &PublicKey, rules: ConsensusRules) -> Chain {
         let genesis = new_genesis_block(pubkey, rules.coins_per_block);
-        let chain = Blockchain::new(genesis);
-        let utxos = UtxoPool::new(&chain);
-        Chain {
-            rules,
-            chain,
-            utxos,
-        }
+        Self::init(rules, Blockchain::new(genesis))
+    }
+
+    pub fn from_serializable(chain: SerializableChain) -> Chain {
+        Self::init(chain.rules, chain.chain)
     }
 
     pub fn get_block(&self, height: usize) -> Option<&Block> {
