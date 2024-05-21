@@ -691,15 +691,22 @@ mod tests {
         let iterations = 3;
         let mut rng = thread_rng();
         for _ in 0..iterations {
-            let accounts: Vec<(KeyPair, Vec<Utxo>, Value)> = keys.iter().map(|key: &KeyPair| {
-                let utxos = chain.find_utxos_for_key(&key.public_key());
-                let value = utxos.iter().fold(0, |acc, utxo| acc + utxo.value);
-                (key.clone(), utxos, value)
-            }).collect();
+            let accounts: Vec<(KeyPair, Vec<Utxo>, Value)> = keys
+                .iter()
+                .map(|key: &KeyPair| {
+                    let utxos = chain.find_utxos_for_key(&key.public_key());
+                    let value = utxos.iter().fold(0, |acc, utxo| acc + utxo.value);
+                    (key.clone(), utxos, value)
+                })
+                .collect();
 
             let mut transactions = Vec::new();
             for account in &accounts {
-                println!("Account: {:?}\n Value: {}", account.0.public_key(), account.2);
+                println!(
+                    "Account: {:?}\n Value: {}",
+                    account.0.public_key(),
+                    account.2
+                );
                 let tx_count = 4;
                 let tx_value = account.2 / tx_count;
                 let tx_rem = account.2 % tx_count;
@@ -733,7 +740,10 @@ mod tests {
                 Err(_) => println!("Block not added"),
             }
 
-            assert_eq!(accounts.iter().fold(0, |tot, account| tot + account.2), chain.rules.coins_per_block);
+            assert_eq!(
+                accounts.iter().fold(0, |tot, account| tot + account.2),
+                chain.rules.coins_per_block
+            );
         }
         assert_eq!(chain.height(), iterations + 1);
     }
