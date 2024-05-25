@@ -7,3 +7,7 @@ test-print:
 test:
 	cargo fmt
 	cargo test
+
+.PHONY: run-server
+run-server:
+	cargo run --bin server

@@ -1,10 +1,12 @@
 use clap::{Parser, Subcommand};
 use coin::chain::{Chain, SerializableChain};
-use coin::traits::io::FileIO;
+use coin::traits::io::{FileIO, JsonIO};
 use coin::types::keys::KeyPair;
+use rouille::{router, Response, ResponseBody, Server};
 use std::fs::File;
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::{Arc, Mutex};
 
 #[derive(Parser)]
 #[command(name = "Coin Node")]
@@ -71,6 +73,46 @@ fn new(path: &PathBuf, key: &PathBuf) -> bool {
     return true;
 }
 
+trait CommonResponses {
+    fn ok(json: &str) -> Response {
+        Response {
+            status_code: 200,
+            headers: vec![(
+                "Content-Type".into(),
+                "application/json; charset=utf-8".into(),
+            )],
+            data: ResponseBody::from_string(json),
+            upgrade: None,
+        }
+    }
+
+    fn server_error() -> Response {
+        Response {
+            status_code: 500,
+            headers: vec![(
+                "Content-Type".into(),
+                "application/json; charset=utf-8".into(),
+            )],
+            data: ResponseBody::from_string(""),
+            upgrade: None,
+        }
+    }
+
+    fn not_found() -> Response {
+        Response {
+            status_code: 404,
+            headers: vec![(
+                "Content-Type".into(),
+                "application/json; charset=utf-8".into(),
+            )],
+            data: ResponseBody::from_string(""),
+            upgrade: None,
+        }
+    }
+}
+
+impl CommonResponses for Response {}
+
 fn start(path: &PathBuf) -> bool {
     println!("Starting server with chain {}", path.display());
     let mut chain_file = match File::open(path) {
@@ -82,7 +124,34 @@ fn start(path: &PathBuf) -> bool {
         Ok(chain) => chain,
         Err(_) => return false,
     };
-    let chain = Chain::from_serializable(ser_chain);
-    println!("{:#?}", chain);
+    let chain = Arc::new(Mutex::new(Chain::from_serializable(ser_chain)));
+    if !chain.lock().unwrap().validate_chain() {
+        println!("Blockchain validation failed!");
+        return false;
+    }
+
+    let chain_ref = chain.clone();
+    let server = Server::new("127.0.0.1:8080", move |request| {
+        router!(request,
+        (GET) (/chain) => {
+            match SerializableChain::new(chain_ref.lock().unwrap().clone()).to_json() {
+                Ok(chain) => Response::ok(&chain),
+                Err(_) => Response::server_error(),
+            }
+        },
+        _ => Response::not_found())
+    })
+    .unwrap();
+
+    println!("Listening on {:?}", server.server_addr());
+    let (handle, sender) = server.stoppable();
+
+    ctrlc::set_handler(move || {
+        println!("CTRL+C");
+        sender.send(()).unwrap();
+    })
+    .expect("Error setting SIGTERM handler");
+
+    handle.join().unwrap();
     return true;
 }
