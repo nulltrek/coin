@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use coin::chain::{Chain, SerializableChain};
+use coin::core::keys::KeyPair;
 use coin::traits::io::{FileIO, JsonIO};
-use coin::types::keys::KeyPair;
 use rouille::{router, Response, ResponseBody, Server};
 use std::fs::File;
 use std::path::PathBuf;

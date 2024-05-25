@@ -1,10 +1,10 @@
 use crate::consensus::ConsensusRules;
+use crate::core::block::Block;
+use crate::core::blockchain::{Blockchain, BlockchainError};
+use crate::core::hash::Hash;
+use crate::core::keys::PublicKey;
+use crate::core::transaction::{Output, Transaction};
 use crate::traits::io::{ByteIO, FileIO, JsonIO};
-use crate::types::block::Block;
-use crate::types::blockchain::{Blockchain, BlockchainError};
-use crate::types::hash::Hash;
-use crate::types::keys::PublicKey;
-use crate::types::transaction::{Output, Transaction};
 use crate::utils::*;
 use crate::utxo::Utxo;
 use serde::{Deserialize, Serialize};
@@ -285,10 +285,10 @@ impl JsonIO for SerializableChain {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::block::{Block, BlockData};
-    use crate::types::hash::Hash;
-    use crate::types::keys::KeyPair;
-    use crate::types::transaction::{Input, Output, TransactionData, Value};
+    use crate::core::block::{Block, BlockData};
+    use crate::core::hash::Hash;
+    use crate::core::keys::KeyPair;
+    use crate::core::transaction::{Input, Output, TransactionData, Value};
     use ethnum::U256;
 
     #[test]

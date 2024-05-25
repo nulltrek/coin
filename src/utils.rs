@@ -1,10 +1,10 @@
 use crate::chain::Chain;
-use crate::types::block::{Block, BlockData, Nonce};
-use crate::types::blockchain::Blockchain;
-use crate::types::hash::Hash;
-use crate::types::keys::KeyPair;
-use crate::types::keys::{PublicKey, Verifier};
-use crate::types::transaction::{Output, Transaction, TransactionData, Value};
+use crate::core::block::{Block, BlockData, Nonce};
+use crate::core::blockchain::Blockchain;
+use crate::core::hash::Hash;
+use crate::core::keys::KeyPair;
+use crate::core::keys::{PublicKey, Verifier};
+use crate::core::transaction::{Output, Transaction, TransactionData, Value};
 use crate::utxo::{IntoInputs, Utxo, UtxoError};
 
 pub fn new_coinbase_tx(pubkey: &PublicKey, value: Value) -> Transaction {
@@ -75,7 +75,7 @@ pub fn new_block(chain: &Chain, nonce: Nonce, transactions: Vec<Transaction>) ->
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::keys::KeyPair;
+    use crate::core::keys::KeyPair;
 
     #[test]
     fn tx_creation() {

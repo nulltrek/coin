@@ -102,7 +102,7 @@ impl FileIO for KeyPair {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::hash::Hash;
+    use crate::core::hash::Hash;
     use tempfile::*;
 
     #[test]

@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
+use coin::core::keys::KeyPair;
 use coin::traits::io::FileIO;
-use coin::types::keys::KeyPair;
 use std::fs::File;
 use std::path::PathBuf;
 

@@ -1,7 +1,7 @@
-use crate::types::hash::Hash;
-use crate::types::keys::KeyPair;
-use crate::types::transaction::Input;
-use crate::types::transaction::Value;
+use crate::core::hash::Hash;
+use crate::core::keys::KeyPair;
+use crate::core::transaction::Input;
+use crate::core::transaction::Value;
 
 #[derive(PartialEq, Debug)]
 pub enum UtxoError {
