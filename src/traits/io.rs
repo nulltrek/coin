@@ -1,5 +1,6 @@
 use bincode;
 use serde::{Deserialize, Serialize};
+use serde_json;
 use std::fs::File;
 use std::io::{Read, Write};
 
@@ -42,6 +43,18 @@ pub trait FileIO: Sized + ByteIO {
         match file.write_all(&bytes) {
             Ok(_) => Ok(bytes.len()),
             Err(_) => Err(FileIOError),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct JsonIOError;
+
+pub trait JsonIO: Sized + Serialize {
+    fn to_json(self: &Self) -> Result<String, JsonIOError> {
+        match serde_json::to_string(self) {
+            Ok(value) => Ok(value),
+            Err(_) => Err(JsonIOError),
         }
     }
 }

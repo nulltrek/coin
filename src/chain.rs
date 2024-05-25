@@ -1,5 +1,5 @@
 use crate::consensus::ConsensusRules;
-use crate::traits::io::{ByteIO, FileIO};
+use crate::traits::io::{ByteIO, FileIO, JsonIO};
 use crate::types::block::Block;
 use crate::types::blockchain::{Blockchain, BlockchainError};
 use crate::types::hash::Hash;
@@ -280,6 +280,7 @@ impl SerializableChain {
 
 impl ByteIO for SerializableChain {}
 impl FileIO for SerializableChain {}
+impl JsonIO for SerializableChain {}
 
 #[cfg(test)]
 mod tests {
