@@ -15,7 +15,7 @@ pub struct UtxoSelection<'a> {
     pub change: Value,
 }
 
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Eq, PartialEq, Hash, Debug)]
 pub struct Utxo {
     pub hash: Hash,
     pub output: u32,

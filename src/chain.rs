@@ -158,7 +158,7 @@ impl Chain {
      * - For each output, its value is greater than zero
      * - The total input value is greater than or equal to the total ouput value
      */
-    fn validate_tx(&self, tx: &Transaction) -> bool {
+    pub fn validate_tx(&self, tx: &Transaction) -> bool {
         return tx.is_hash_valid()
             && tx.data.inputs.len() > 0
             && tx.data.outputs.len() > 0
@@ -652,7 +652,7 @@ mod tests {
         let valid_coinbase_tx = Transaction::new(TransactionData {
             inputs: vec![],
             outputs: vec![Output {
-                value: chain.rules.coins_per_block,
+                value: chain.rules.coins_per_block + 5000,
                 pubkey: key_1.public_key(),
             }],
         });
@@ -676,6 +676,15 @@ mod tests {
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 1);
+
+        let utxos_1 = chain.find_utxos_for_key(&key_1.public_key());
+        assert_eq!(
+            utxos_1.iter().fold(0, |acc, u| acc + u.value),
+            (chain.rules.coins_per_block * 2) - 5000
+        );
+
+        let utxos_2 = chain.find_utxos_for_key(&key_2.public_key());
+        assert_eq!(utxos_2.iter().fold(0, |acc, u| acc + u.value), 5000);
     }
 
     #[test]
@@ -734,7 +743,7 @@ mod tests {
                 if tx.is_ok() {
                     transactions.push(tx.unwrap());
                 } else {
-                    println!("Not ok");
+                    println!("Transaction not added");
                 }
             }
 
