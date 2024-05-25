@@ -1,6 +1,6 @@
+use crate::core::hash::Hash;
+use crate::core::transaction::Transaction;
 use crate::traits::io::{ByteIO, FileIO};
-use crate::types::hash::Hash;
-use crate::types::transaction::Transaction;
 use serde::{Deserialize, Serialize};
 
 pub type Nonce = u32;
@@ -66,8 +66,8 @@ impl FileIO for Block {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::keys::KeyPair;
-    use crate::types::transaction::{Input, Output, TransactionData};
+    use crate::core::keys::KeyPair;
+    use crate::core::transaction::{Input, Output, TransactionData};
     use tempfile::*;
 
     #[test]

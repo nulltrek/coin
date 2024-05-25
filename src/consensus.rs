@@ -1,6 +1,6 @@
+use crate::core::hash::Hash;
+use crate::core::transaction::Value;
 use crate::traits::io::{ByteIO, FileIO};
-use crate::types::hash::Hash;
-use crate::types::transaction::Value;
 use ethnum::U256;
 use serde::{Deserialize, Serialize};
 

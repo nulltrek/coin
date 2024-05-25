@@ -1,7 +1,7 @@
-use crate::types::block::{Block, BlockData};
-use crate::types::hash::Hash;
-use crate::types::keys::KeyPair;
-use crate::types::transaction::{Input, Output, Transaction, TransactionData, Value};
+use crate::core::block::{Block, BlockData};
+use crate::core::hash::Hash;
+use crate::core::keys::KeyPair;
+use crate::core::transaction::{Input, Output, Transaction, TransactionData, Value};
 
 pub struct BlockGen {
     valid: bool,

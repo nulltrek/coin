@@ -1,6 +1,6 @@
+use crate::core::hash::Hash;
+use crate::core::keys::{PublicKey, Signature};
 use crate::traits::io::{ByteIO, FileIO};
-use crate::types::hash::Hash;
-use crate::types::keys::{PublicKey, Signature};
 use serde::{Deserialize, Serialize};
 
 pub type Value = u64;
@@ -58,7 +58,7 @@ impl FileIO for Transaction {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::keys::KeyPair;
+    use crate::core::keys::KeyPair;
     use tempfile::*;
 
     #[test]

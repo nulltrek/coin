@@ -1,7 +1,7 @@
+use crate::core::block::Block;
+use crate::core::hash::Hash;
+use crate::core::transaction::{Output, Transaction, Value};
 use crate::traits::io::{ByteIO, FileIO};
-use crate::types::block::Block;
-use crate::types::hash::Hash;
-use crate::types::transaction::{Output, Transaction, Value};
 use serde::{Deserialize, Serialize};
 use std::ops::Add;
 use std::slice::Iter;
@@ -167,10 +167,10 @@ impl FileIO for Blockchain {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::block::BlockData;
-    use crate::types::keys::KeyPair;
-    use crate::types::testing::BlockGen;
-    use crate::types::transaction::{Input, TransactionData};
+    use crate::core::block::BlockData;
+    use crate::core::keys::KeyPair;
+    use crate::core::testing::BlockGen;
+    use crate::core::transaction::{Input, TransactionData};
     use crate::utils::*;
 
     #[test]
