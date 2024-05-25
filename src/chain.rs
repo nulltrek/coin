@@ -285,6 +285,7 @@ impl JsonIO for SerializableChain {}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::consensus::Target;
     use crate::core::block::{Block, BlockData};
     use crate::core::hash::Hash;
     use crate::core::keys::KeyPair;
@@ -629,8 +630,10 @@ mod tests {
         let key_1 = KeyPair::new();
         let key_2 = KeyPair::new();
 
-        let mut chain =
-            Chain::new_with_consensus(&key_1.public_key(), ConsensusRules::new(U256::from(1_u32)));
+        let mut chain = Chain::new_with_consensus(
+            &key_1.public_key(),
+            ConsensusRules::new(Target::from_leading_zeros(254)),
+        );
         let last_block = chain.chain.get_last_block();
         let last_coinbase = &last_block.data.transactions[0];
         let last_block_hash = last_block.hash.clone();
