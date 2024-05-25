@@ -116,13 +116,6 @@ impl ConsensusRules {
         }
     }
 
-    pub fn new_with_leading(leading_zeros: u8) -> ConsensusRules {
-        ConsensusRules {
-            target: Target::from_leading_zeros(leading_zeros),
-            ..ConsensusRules::default()
-        }
-    }
-
     pub fn validate_target(&self, hash: &Hash) -> bool {
         Target::from_hash(hash) <= self.target
     }
