@@ -51,23 +51,36 @@ fn new(path: &PathBuf, key: &PathBuf) -> bool {
     );
     let mut key_file = match File::open(key) {
         Ok(file) => file,
-        Err(_) => return false,
+        Err(err) => {
+            println!("Failed to open key file: {}", err);
+            return false;
+        }
     };
 
     let key = match KeyPair::from_file(&mut key_file) {
         Ok(key) => key,
-        Err(_) => return false,
+        Err(_) => {
+            println!("Failed to read key from file!");
+            return false;
+        }
     };
 
     let chain = SerializableChain::new(Chain::new(&key.public_key()));
+    println!("{:?}", chain);
     let mut chain_file = match File::create_new(path) {
         Ok(file) => file,
-        Err(_) => return false,
+        Err(_) => {
+            println!("Failed to create new chain file!");
+            return false;
+        }
     };
 
     match chain.to_file(&mut chain_file) {
         Ok(_) => println!("Chain saved to file: {}", path.display()),
-        Err(_) => return false,
+        Err(_) => {
+            println!("Failed to save chain to file!");
+            return false;
+        }
     };
 
     return true;
@@ -122,7 +135,10 @@ fn start(path: &PathBuf) -> bool {
 
     let ser_chain = match SerializableChain::from_file(&mut chain_file) {
         Ok(chain) => chain,
-        Err(_) => return false,
+        Err(_) => {
+            println!("Cannot deserialize blockchain!");
+            return false;
+        }
     };
     let chain = Arc::new(Mutex::new(Chain::from_serializable(ser_chain)));
     if !chain.lock().unwrap().validate_chain() {
