@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use coin::chain::{Chain, SerializableChain};
+use coin::consensus::{ConsensusRules, Target};
 use coin::core::keys::{KeyPair, PublicKey};
 use coin::core::transaction::Transaction;
 use coin::mining::miner::Miner;
@@ -64,8 +65,11 @@ fn command_new(path: &PathBuf, key: &PathBuf) -> bool {
         }
     };
 
-    let chain = SerializableChain::new(Chain::new(&key.public_key()));
-    match chain.to_file(path) {
+    let chain = Chain::new_with_consensus(
+        &key.public_key(),
+        ConsensusRules::new(Target::from_leading_zeros(15)),
+    );
+    match SerializableChain::new(chain).to_file(path) {
         Ok(_) => println!("Chain saved to file: {}", path.display()),
         Err(_) => {
             println!("Failed to save chain to file!");
@@ -204,25 +208,29 @@ fn command_start(path: &PathBuf, recipient: &PathBuf) -> bool {
         },
         (POST) (/chain) => {
             println!("POST /chain");
-            match request.data() {
-                None => Response::client_error(),
-                Some(mut body) => {
-                    let mut buf = Vec::new();
-                    match body.read_to_end(&mut buf) {
-                        Err(_) => Response::server_error(),
-                        Ok(_) => match Transaction::from_json(String::from_utf8(buf).unwrap().as_str()) {
-                            Ok(tx) => if miner_ref.lock().unwrap().add_tx(&chain_ref.lock().unwrap(), tx) {
-                                if miner_ref.lock().unwrap().pool.len() > 0 {
-                                    let _ = miner_sender_ref.send(MinerCommand::Mine);
-                                }
-                                Response::ok("")
-                            } else {
-                                Response::client_error()
-                            },
-                            Err(_) => Response::client_error(),
-                        }
-                    }
+            let mut body = match request.data() {
+                None => return Response::client_error(),
+                Some(body) => body
+            };
+
+            let mut buf = Vec::new();
+            if body.read_to_end(&mut buf).is_err() {
+                return Response::server_error();
+            }
+
+            let tx = match Transaction::from_json(String::from_utf8(buf).unwrap().as_str()) {
+                Ok(tx) => tx,
+                Err(_) => return Response::client_error(),
+            };
+
+            let mut miner = miner_ref.lock().unwrap();
+            if miner.add_tx(&chain_ref.lock().unwrap(), tx) {
+                if miner.pool.len() > 1 {
+                    let _ = miner_sender_ref.send(MinerCommand::Mine);
                 }
+                Response::ok("")
+            } else {
+                Response::client_error()
             }
         },
         (GET) (/utxos/all) => {
