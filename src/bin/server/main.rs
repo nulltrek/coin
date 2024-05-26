@@ -6,7 +6,6 @@ use coin::mining::miner::Miner;
 use coin::traits::io::{FileIO, JsonIO};
 use coin::utils::utxos_to_json;
 use rouille::{router, Response, ResponseBody, Server};
-use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -44,28 +43,20 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
 
     let success = match &cli.command {
-        Commands::New { path, key } => new(path, key),
-        Commands::Start { path, recipient } => start(path, recipient),
+        Commands::New { path, key } => command_new(path, key),
+        Commands::Start { path, recipient } => command_start(path, recipient),
     };
 
     ExitCode::from(if success { 0 } else { 1 })
 }
 
-fn new(path: &PathBuf, key: &PathBuf) -> bool {
+fn command_new(path: &PathBuf, key: &PathBuf) -> bool {
     println!(
         "Creating new chain at {} with key {}",
         path.display(),
         key.display()
     );
-    let mut key_file = match File::open(key) {
-        Ok(file) => file,
-        Err(err) => {
-            println!("Failed to open key file: {}", err);
-            return false;
-        }
-    };
-
-    let key = match KeyPair::from_file(&mut key_file) {
+    let key = match KeyPair::from_file(&key) {
         Ok(key) => key,
         Err(_) => {
             println!("Failed to read key from file!");
@@ -74,16 +65,7 @@ fn new(path: &PathBuf, key: &PathBuf) -> bool {
     };
 
     let chain = SerializableChain::new(Chain::new(&key.public_key()));
-    println!("{:?}", chain);
-    let mut chain_file = match File::create_new(path) {
-        Ok(file) => file,
-        Err(_) => {
-            println!("Failed to create new chain file!");
-            return false;
-        }
-    };
-
-    match chain.to_file(&mut chain_file) {
+    match chain.to_file(path) {
         Ok(_) => println!("Chain saved to file: {}", path.display()),
         Err(_) => {
             println!("Failed to save chain to file!");
@@ -151,38 +133,26 @@ enum MinerCommand {
     Mine,
 }
 
-fn start(path: &PathBuf, recipient: &PathBuf) -> bool {
+fn command_start(path: &PathBuf, recipient: &PathBuf) -> bool {
     println!("Starting server with chain {}", path.display());
 
     // SETUP BLOCKCHAIN
-    let mut chain_file = match File::open(path) {
-        Ok(file) => file,
-        Err(_) => return false,
-    };
-
-    let ser_chain = match SerializableChain::from_file(&mut chain_file) {
-        Ok(chain) => chain,
+    let chain = match SerializableChain::from_file(path) {
+        Ok(chain) => Chain::from_serializable(chain),
         Err(_) => {
             println!("Cannot deserialize blockchain!");
             return false;
         }
     };
-    let chain = Arc::new(Mutex::new(Chain::from_serializable(ser_chain)));
+
+    let chain = Arc::new(Mutex::new(chain));
     if !chain.lock().unwrap().validate_chain() {
         println!("Blockchain validation failed!");
         return false;
     }
 
     // SETUP RECIPIENT KEY
-    let mut key_file = match File::open(recipient) {
-        Ok(file) => file,
-        Err(err) => {
-            println!("Failed to open key file: {}", err);
-            return false;
-        }
-    };
-
-    let key = match KeyPair::from_file(&mut key_file) {
+    let key = match KeyPair::from_file(recipient) {
         Ok(key) => key,
         Err(_) => {
             println!("Failed to read key from file!");
@@ -294,5 +264,15 @@ fn start(path: &PathBuf, recipient: &PathBuf) -> bool {
 
     miner_task.join().unwrap();
     server_task.join().unwrap();
+
+    let chain = Arc::try_unwrap(chain).unwrap().into_inner().unwrap();
+    match SerializableChain::new(chain).to_file(path) {
+        Ok(_) => println!("Chain saved to file: {}", path.display()),
+        Err(_) => {
+            println!("Failed to save chain to file!");
+            return false;
+        }
+    };
+
     return true;
 }

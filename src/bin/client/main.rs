@@ -4,7 +4,6 @@ use coin::core::keys::PublicKey;
 use coin::core::transaction::{Output, Value};
 use coin::traits::io::FileIO;
 use coin::utils::{json_to_utxos, new_tx};
-use std::fs::File;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -24,6 +23,13 @@ enum Commands {
     #[command(about = "Print public address for key")]
     GetAddr { path: PathBuf },
 
+    #[command(about = "Print the number of coins the key owns")]
+    GetFunds {
+        #[arg(short, long, required = false, default_value = "http://127.0.0.1:8080")]
+        node: String,
+        path: PathBuf,
+    },
+
     #[command(about = "Send coins to address")]
     Send {
         #[arg(short, long, required = false, default_value = "http://127.0.0.1:8080")]
@@ -40,30 +46,18 @@ fn main() -> ExitCode {
     match &cli.command {
         Commands::GenKeys { path } => {
             println!("Saving new key pair in file {}", path.display());
-            match File::create_new(path) {
-                Ok(mut file) => {
-                    let key = KeyPair::new();
-                    println!("{:?}", key.private_key());
-                    key.to_file(&mut file)
-                        .expect("Failed to save keys to file.");
-                    ExitCode::from(0)
-                }
-                Err(error) => {
-                    println!("Failure: {}", error);
-                    ExitCode::from(1)
-                }
-            }
-        }
-        Commands::GetAddr { path } => {
-            let mut key_file = match File::open(path) {
-                Ok(file) => file,
-                Err(err) => {
-                    println!("Failed to open key file: {}", err);
+            let key = KeyPair::new();
+            match key.to_file(path) {
+                Ok(_) => println!("Key pair saved!"),
+                Err(_) => {
+                    println!("Failed to save keys to file");
                     return ExitCode::from(1);
                 }
-            };
-
-            let key = match KeyPair::from_file(&mut key_file) {
+            }
+            ExitCode::from(0)
+        }
+        Commands::GetAddr { path } => {
+            let key = match KeyPair::from_file(path) {
                 Ok(key) => key,
                 Err(_) => {
                     println!("Failed to read key from file!");
@@ -78,6 +72,29 @@ fn main() -> ExitCode {
             );
             ExitCode::from(0)
         }
+        Commands::GetFunds { node, path } => {
+            let key = match KeyPair::from_file(path) {
+                Ok(key) => key,
+                Err(_) => {
+                    println!("Failed to read key from file!");
+                    return ExitCode::from(1);
+                }
+            };
+
+            let addr = key.public_key().to_hex_str();
+
+            let utxos = match reqwest::blocking::get(format!("{}/utxos/{}", node, addr,)) {
+                Ok(body) => json_to_utxos(&body.text().unwrap()).unwrap(),
+                Err(err) => {
+                    println!("Failed to fetch utxos! {:?}", err);
+                    return ExitCode::from(1);
+                }
+            };
+
+            let value = utxos.into_iter().fold(0, |acc, utxo| acc + utxo.value);
+            println!("Total coins for address {}: {}", addr, value);
+            ExitCode::from(0)
+        }
         Commands::Send {
             node,
             key,
@@ -86,15 +103,7 @@ fn main() -> ExitCode {
         } => {
             println!("Sending {} coins to {}", value, addr);
 
-            let mut key_file = match File::open(key) {
-                Ok(file) => file,
-                Err(err) => {
-                    println!("Failed to open key file: {}", err);
-                    return ExitCode::from(1);
-                }
-            };
-
-            let key = match KeyPair::from_file(&mut key_file) {
+            let key = match KeyPair::from_file(key) {
                 Ok(key) => key,
                 Err(_) => {
                     println!("Failed to read key from file!");
@@ -110,7 +119,7 @@ fn main() -> ExitCode {
                 }
             };
 
-            let utxos = match reqwest::blocking::get(format!(
+            let mut utxos = match reqwest::blocking::get(format!(
                 "{}/utxos/{}",
                 node,
                 key.public_key().to_hex_str()
@@ -122,6 +131,7 @@ fn main() -> ExitCode {
                 }
             };
 
+            utxos.sort_by(|a, b| a.value.cmp(&b.value));
             let tx = match new_tx(
                 &key,
                 &utxos,

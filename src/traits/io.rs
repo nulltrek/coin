@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use std::fs::File;
 use std::io::{Read, Write};
+use std::path::Path;
 
 #[derive(Debug)]
 pub struct SerializeError;
@@ -34,21 +35,38 @@ pub trait ByteIO: Serialize + for<'a> Deserialize<'a> {
 pub struct FileIOError;
 
 pub trait FileIO: Sized + ByteIO {
-    fn from_file(file: &mut File) -> Result<Self, FileIOError> {
+    fn from_file(path: &Path) -> Result<Self, FileIOError> {
+        let mut file = match File::open(path) {
+            Ok(file) => file,
+            Err(_) => return Err(FileIOError),
+        };
+
+        Self::from_file_descriptor(&mut file)
+    }
+
+    fn from_file_descriptor(file: &mut File) -> Result<Self, FileIOError> {
         let mut buffer = Vec::new();
         let result = file.read_to_end(&mut buffer);
         if result.is_err() {
             return Err(FileIOError);
         }
 
-        let result = match Self::from_bytes(buffer.as_slice()) {
+        match Self::from_bytes(buffer.as_slice()) {
             Ok(item) => Ok(item),
             Err(_) => Err(FileIOError),
-        };
-        result
+        }
     }
 
-    fn to_file(self: &Self, file: &mut File) -> Result<usize, FileIOError> {
+    fn to_file(self: &Self, path: &Path) -> Result<usize, FileIOError> {
+        let mut file = match File::create(path) {
+            Ok(file) => file,
+            Err(_) => return Err(FileIOError),
+        };
+
+        self.to_file_descriptor(&mut file)
+    }
+
+    fn to_file_descriptor(self: &Self, file: &mut File) -> Result<usize, FileIOError> {
         let bytes = self.into_bytes();
         match file.write_all(&bytes) {
             Ok(_) => Ok(bytes.len()),

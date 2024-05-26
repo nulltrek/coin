@@ -215,11 +215,11 @@ mod tests {
         let temp_file = NamedTempFile::new().unwrap();
 
         let mut out_file = temp_file.reopen().unwrap();
-        let result = original.to_file(&mut out_file);
+        let result = original.to_file_descriptor(&mut out_file);
         assert!(result.is_ok());
 
         let mut in_file = temp_file.reopen().unwrap();
-        let deserialized = Transaction::from_file(&mut in_file).unwrap();
+        let deserialized = Transaction::from_file_descriptor(&mut in_file).unwrap();
         assert_eq!(original, deserialized);
     }
 }
