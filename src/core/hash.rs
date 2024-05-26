@@ -1,8 +1,18 @@
 use crate::traits::io::ByteIO;
+use core::fmt::Formatter;
 use ethnum::U256;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fmt;
+
+#[derive(Debug)]
+pub struct HashDeserializeError;
+
+impl fmt::Display for HashDeserializeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Hash deserialization error")
+    }
+}
 
 #[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
 pub struct Hash {
@@ -25,6 +35,21 @@ impl Hash {
     pub fn is_zero(&self) -> bool {
         U256::from_be_bytes(self.value.clone()) == U256::from(0_u32)
     }
+
+    pub fn to_hex_str(&self) -> String {
+        hex::encode(self.value)
+    }
+
+    pub fn from_hex_str(string: &str) -> Result<Hash, HashDeserializeError> {
+        let data = match hex::decode(string) {
+            Ok(value) => value,
+            Err(_) => return Err(HashDeserializeError),
+        };
+        match data.as_slice().try_into() {
+            Ok(value) => Ok(Hash { value }),
+            Err(_) => Err(HashDeserializeError),
+        }
+    }
 }
 
 impl Default for Hash {
@@ -35,33 +60,13 @@ impl Default for Hash {
 
 impl fmt::Debug for Hash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.value
-                .iter()
-                .map(|e| format!("{:02x}", e))
-                .fold(String::new(), |mut acc, e| {
-                    acc.push_str(&e);
-                    acc
-                })
-        )
+        write!(f, "{}", self.to_hex_str())
     }
 }
 
 impl fmt::Display for Hash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.value
-                .iter()
-                .map(|e| format!("{:02x}", e))
-                .fold(String::new(), |mut acc, e| {
-                    acc.push_str(&e);
-                    acc
-                })
-        )
+        write!(f, "{}", self.to_hex_str())
     }
 }
 
@@ -106,7 +111,7 @@ mod tests {
     }
 
     #[test]
-    fn display() {
+    fn serialization() {
         let bytes = vec![
             159, 134, 208, 129, 136, 76, 125, 101, 154, 47, 234, 160, 197, 90, 208, 21, 163, 191,
             79, 27, 43, 11, 130, 44, 209, 93, 108, 21, 176, 240, 10, 8,
@@ -114,8 +119,14 @@ mod tests {
         let hash = Hash::from_bytes(&bytes).unwrap();
 
         assert_eq!(
-            format!("{}", hash),
+            hash.to_hex_str(),
             "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
         );
+
+        assert_eq!(
+            Hash::from_hex_str("9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08")
+                .unwrap(),
+            hash,
+        )
     }
 }
