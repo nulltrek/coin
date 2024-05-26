@@ -1,6 +1,6 @@
 use crate::core::hash::Hash;
 use crate::core::keys::{PublicKey, Signature};
-use crate::traits::io::{ByteIO, FileIO};
+use crate::traits::io::{ByteIO, FileIO, JsonIO};
 use serde::{Deserialize, Serialize};
 
 pub type Value = u64;
@@ -52,8 +52,8 @@ impl Transaction {
 }
 
 impl ByteIO for Transaction {}
-
 impl FileIO for Transaction {}
+impl JsonIO for Transaction {}
 
 #[cfg(test)]
 mod tests {

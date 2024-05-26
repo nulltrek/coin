@@ -1,5 +1,4 @@
 use crate::traits::io::ByteIO;
-use core::fmt::Formatter;
 use ethnum::U256;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};

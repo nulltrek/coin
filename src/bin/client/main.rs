@@ -1,7 +1,9 @@
 use clap::{Parser, Subcommand};
 use coin::core::keys::KeyPair;
-use coin::core::transaction::Value;
+use coin::core::keys::PublicKey;
+use coin::core::transaction::{Output, Value};
 use coin::traits::io::FileIO;
+use coin::utils::{json_to_utxos, new_tx};
 use std::fs::File;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -23,7 +25,13 @@ enum Commands {
     GetAddr { path: PathBuf },
 
     #[command(about = "Send coins to address")]
-    Send { addr: String, value: Value },
+    Send {
+        #[arg(short, long, required = false, default_value = "http://127.0.0.1:8080")]
+        node: String,
+        key: PathBuf,
+        addr: String,
+        value: Value,
+    },
 }
 
 fn main() -> ExitCode {
@@ -70,10 +78,79 @@ fn main() -> ExitCode {
             );
             ExitCode::from(0)
         }
-        Commands::Send { addr, value } => {
+        Commands::Send {
+            node,
+            key,
+            addr,
+            value,
+        } => {
             println!("Sending {} coins to {}", value, addr);
-            println!("NOT YET IMPLEMENTED");
-            ExitCode::from(1)
+
+            let mut key_file = match File::open(key) {
+                Ok(file) => file,
+                Err(err) => {
+                    println!("Failed to open key file: {}", err);
+                    return ExitCode::from(1);
+                }
+            };
+
+            let key = match KeyPair::from_file(&mut key_file) {
+                Ok(key) => key,
+                Err(_) => {
+                    println!("Failed to read key from file!");
+                    return ExitCode::from(1);
+                }
+            };
+
+            let recipient = match PublicKey::from_hex_str(addr) {
+                Ok(key) => key,
+                Err(_) => {
+                    println!("The address is not valid!");
+                    return ExitCode::from(1);
+                }
+            };
+
+            let utxos = match reqwest::blocking::get(format!(
+                "{}/utxos/{}",
+                node,
+                key.public_key().to_hex_str()
+            )) {
+                Ok(body) => json_to_utxos(&body.text().unwrap()).unwrap(),
+                Err(err) => {
+                    println!("Failed to fetch utxos! {:?}", err);
+                    return ExitCode::from(1);
+                }
+            };
+
+            let tx = match new_tx(
+                &key,
+                &utxos,
+                vec![Output {
+                    pubkey: recipient,
+                    value: *value,
+                }],
+            ) {
+                Ok(tx) => tx,
+                Err(err) => {
+                    println!("Failed to build transaction: {}", err);
+                    return ExitCode::from(1);
+                }
+            };
+
+            println!("Sending transaction: \n{:#?}", tx);
+
+            let client = reqwest::blocking::Client::new();
+            match client.post(format!("{}/chain", node)).json(&tx).send() {
+                Ok(res) => {
+                    println!("Response: {}", res.status())
+                }
+                Err(err) => {
+                    println!("Failed to send transaction: {:?}", err);
+                    return ExitCode::from(1);
+                }
+            };
+
+            ExitCode::from(0)
         }
     }
 }

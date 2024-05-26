@@ -1,12 +1,18 @@
 use clap::{Parser, Subcommand};
 use coin::chain::{Chain, SerializableChain};
-use coin::core::keys::KeyPair;
+use coin::core::keys::{KeyPair, PublicKey};
+use coin::core::transaction::Transaction;
+use coin::mining::miner::Miner;
 use coin::traits::io::{FileIO, JsonIO};
+use coin::utils::utxos_to_json;
 use rouille::{router, Response, ResponseBody, Server};
 use std::fs::File;
+use std::io::Read;
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
+use std::thread;
 
 #[derive(Parser)]
 #[command(name = "Coin Node")]
@@ -29,6 +35,8 @@ enum Commands {
     Start {
         #[arg(short, long)]
         path: PathBuf,
+        #[arg(short, long)]
+        recipient: PathBuf,
     },
 }
 
@@ -37,7 +45,7 @@ fn main() -> ExitCode {
 
     let success = match &cli.command {
         Commands::New { path, key } => new(path, key),
-        Commands::Start { path } => start(path),
+        Commands::Start { path, recipient } => start(path, recipient),
     };
 
     ExitCode::from(if success { 0 } else { 1 })
@@ -111,6 +119,18 @@ trait CommonResponses {
         }
     }
 
+    fn client_error() -> Response {
+        Response {
+            status_code: 400,
+            headers: vec![(
+                "Content-Type".into(),
+                "application/json; charset=utf-8".into(),
+            )],
+            data: ResponseBody::from_string(""),
+            upgrade: None,
+        }
+    }
+
     fn not_found() -> Response {
         Response {
             status_code: 404,
@@ -126,8 +146,15 @@ trait CommonResponses {
 
 impl CommonResponses for Response {}
 
-fn start(path: &PathBuf) -> bool {
+enum MinerCommand {
+    Stop,
+    Mine,
+}
+
+fn start(path: &PathBuf, recipient: &PathBuf) -> bool {
     println!("Starting server with chain {}", path.display());
+
+    // SETUP BLOCKCHAIN
     let mut chain_file = match File::open(path) {
         Ok(file) => file,
         Err(_) => return false,
@@ -146,28 +173,126 @@ fn start(path: &PathBuf) -> bool {
         return false;
     }
 
+    // SETUP RECIPIENT KEY
+    let mut key_file = match File::open(recipient) {
+        Ok(file) => file,
+        Err(err) => {
+            println!("Failed to open key file: {}", err);
+            return false;
+        }
+    };
+
+    let key = match KeyPair::from_file(&mut key_file) {
+        Ok(key) => key,
+        Err(_) => {
+            println!("Failed to read key from file!");
+            return false;
+        }
+    };
+
+    // SETUP MINER
+    let miner = Arc::new(Mutex::new(Miner::new(key.public_key())));
+
+    let chain_miner_ref = chain.clone();
+    let miner_miner_ref = miner.clone();
+    let (miner_sender, miner_receiver) = mpsc::channel();
+    let miner_task = thread::spawn(move || {
+        while let Ok(command) = miner_receiver.recv() {
+            match command {
+                MinerCommand::Stop => return,
+                MinerCommand::Mine => {
+                    let mut chain = chain_miner_ref.lock().unwrap();
+                    let result = miner_miner_ref.lock().unwrap().mine(&chain);
+                    if let Some(block) = result {
+                        match chain.add_block(block) {
+                            Ok(height) => println!(
+                                "Mining successful, inserted block with height: {}",
+                                height
+                            ),
+                            Err(_) => println!("Mining failed, block is not valid."),
+                        }
+                    } else {
+                        println!("Mining failed, block discarded.");
+                    }
+                }
+            }
+        }
+    });
+
+    // SETUP WEBSERVER
     let chain_ref = chain.clone();
-    let server = Server::new("127.0.0.1:8080", move |request| {
+    let miner_ref = miner.clone();
+    let miner_sender_ref = miner_sender.clone();
+    let server_task = Server::new("127.0.0.1:8080", move |request| {
         router!(request,
         (GET) (/chain) => {
+            println!("GET /chain");
             match SerializableChain::new(chain_ref.lock().unwrap().clone()).to_json() {
                 Ok(chain) => Response::ok(&chain),
                 Err(_) => Response::server_error(),
             }
         },
-        _ => Response::not_found())
-    })
+        (POST) (/chain) => {
+            println!("POST /chain");
+            match request.data() {
+                None => Response::client_error(),
+                Some(mut body) => {
+                    let mut buf = Vec::new();
+                    match body.read_to_end(&mut buf) {
+                        Err(_) => Response::server_error(),
+                        Ok(_) => match Transaction::from_json(String::from_utf8(buf).unwrap().as_str()) {
+                            Ok(tx) => if miner_ref.lock().unwrap().add_tx(&chain_ref.lock().unwrap(), tx) {
+                                if miner_ref.lock().unwrap().pool.len() > 0 {
+                                    let _ = miner_sender_ref.send(MinerCommand::Mine);
+                                }
+                                Response::ok("")
+                            } else {
+                                Response::client_error()
+                            },
+                            Err(_) => Response::client_error(),
+                        }
+                    }
+                }
+            }
+        },
+        (GET) (/utxos/all) => {
+            println!("GET /utxos/all");
+            let utxos = chain_ref.lock().unwrap().find_all_utxos();
+            Response::ok(&utxos_to_json(&utxos).unwrap().as_str())
+        },
+        (GET) (/utxos/{addr: String}) => {
+            println!("GET /utxos");
+            let pubkey = match PublicKey::from_hex_str(addr.as_str()) {
+                Ok(key) => key,
+                Err(_) => return Response::client_error(),
+            };
+            let utxos = chain_ref.lock().unwrap().find_utxos_for_key(&pubkey);
+            Response::ok(&utxos_to_json(&utxos).unwrap().as_str())
+        },
+        (GET) (/pool) => {
+            println!("GET /pool");
+            let transactions: Vec<Transaction> = miner_ref.lock().unwrap().pool.values().map(|tx| tx.clone()).collect();
+            Response::ok(&serde_json::to_string(&transactions).unwrap())
+        },
+        _ => {
+            println!("{:?}", request);
+            Response::not_found()
+        }
+        )})
     .unwrap();
 
-    println!("Listening on {:?}", server.server_addr());
-    let (handle, sender) = server.stoppable();
+    println!("Listening on {:?}", server_task.server_addr());
+    let (server_task, server_sender) = server_task.stoppable();
 
+    // SETUP HANDLERS AND TEARDOWN
     ctrlc::set_handler(move || {
         println!("CTRL+C");
-        sender.send(()).unwrap();
+        miner_sender.send(MinerCommand::Stop).unwrap();
+        server_sender.send(()).unwrap();
     })
     .expect("Error setting SIGTERM handler");
 
-    handle.join().unwrap();
+    miner_task.join().unwrap();
+    server_task.join().unwrap();
     return true;
 }

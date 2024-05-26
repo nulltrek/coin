@@ -8,9 +8,9 @@ use crate::core::transaction::{Output, Transaction, TransactionData};
 use crate::utils::new_block;
 use std::collections::HashMap;
 
-struct Miner {
+pub struct Miner {
     recipient: PublicKey,
-    pool: HashMap<Hash, Transaction>,
+    pub pool: HashMap<Hash, Transaction>,
 }
 
 impl Miner {
@@ -61,6 +61,10 @@ impl Miner {
             }
             let mut block_data = block.data;
             if block_data.nonce == u32::MAX {
+                // Mining failed, reinsert transactions in pool
+                for tx in block_data.transactions {
+                    self.add_tx(chain, tx);
+                }
                 return None;
             }
             block_data.nonce += 1;

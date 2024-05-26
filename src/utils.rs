@@ -5,7 +5,22 @@ use crate::core::hash::Hash;
 use crate::core::keys::KeyPair;
 use crate::core::keys::{PublicKey, Verifier};
 use crate::core::transaction::{Output, Transaction, TransactionData, Value};
+use crate::traits::io::{DeserializeError, SerializeError};
 use crate::utxo::{IntoInputs, Utxo, UtxoError};
+
+pub fn utxos_to_json(utxos: &Vec<Utxo>) -> Result<String, SerializeError> {
+    match serde_json::to_string(&utxos) {
+        Ok(value) => Ok(value),
+        Err(_) => Err(SerializeError),
+    }
+}
+
+pub fn json_to_utxos(json: &str) -> Result<Vec<Utxo>, DeserializeError> {
+    match serde_json::from_str(json) {
+        Ok(value) => Ok(value),
+        Err(_) => Err(DeserializeError),
+    }
+}
 
 pub fn new_coinbase_tx(pubkey: &PublicKey, value: Value) -> Transaction {
     Transaction::new(TransactionData {
