@@ -1,11 +1,21 @@
 use bincode;
+use core::fmt;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::fs::File;
 use std::io::{Read, Write};
 
 #[derive(Debug)]
+pub struct SerializeError;
+
+#[derive(Debug)]
 pub struct DeserializeError;
+
+impl fmt::Display for DeserializeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Deserialization error")
+    }
+}
 
 pub trait ByteIO: Serialize + for<'a> Deserialize<'a> {
     fn from_bytes(bytes: &[u8]) -> Result<Self, DeserializeError> {
@@ -47,14 +57,18 @@ pub trait FileIO: Sized + ByteIO {
     }
 }
 
-#[derive(Debug)]
-pub struct JsonIOError;
-
-pub trait JsonIO: Sized + Serialize {
-    fn to_json(self: &Self) -> Result<String, JsonIOError> {
+pub trait JsonIO: Sized + Serialize + for<'a> Deserialize<'a> {
+    fn to_json(self: &Self) -> Result<String, SerializeError> {
         match serde_json::to_string(self) {
             Ok(value) => Ok(value),
-            Err(_) => Err(JsonIOError),
+            Err(_) => Err(SerializeError),
+        }
+    }
+
+    fn from_json(string: &str) -> Result<Self, DeserializeError> {
+        match serde_json::from_str(string) {
+            Ok(value) => Ok(value),
+            Err(_) => Err(DeserializeError),
         }
     }
 }

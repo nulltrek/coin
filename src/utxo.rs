@@ -2,6 +2,8 @@ use crate::core::hash::Hash;
 use crate::core::keys::KeyPair;
 use crate::core::transaction::Input;
 use crate::core::transaction::Value;
+use serde::{Deserialize, Serialize};
+use std::fmt;
 
 #[derive(PartialEq, Debug)]
 pub enum UtxoError {
@@ -10,12 +12,18 @@ pub enum UtxoError {
     InvalidTransaction,
 }
 
+impl fmt::Display for UtxoError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Utxo error: {:?}", self)
+    }
+}
+
 pub struct UtxoSelection<'a> {
     pub list: &'a [Utxo],
     pub change: Value,
 }
 
-#[derive(Eq, PartialEq, Hash, Debug)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, Hash, Debug)]
 pub struct Utxo {
     pub hash: Hash,
     pub output: u32,
