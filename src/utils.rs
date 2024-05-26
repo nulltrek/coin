@@ -23,13 +23,13 @@ pub fn json_to_utxos(json: &str) -> Result<Vec<Utxo>, DeserializeError> {
 }
 
 pub fn new_coinbase_tx(pubkey: &PublicKey, value: Value) -> Transaction {
-    Transaction::new(TransactionData {
-        inputs: Vec::new(),
-        outputs: vec![Output {
+    Transaction::new(TransactionData::new(
+        Vec::new(),
+        vec![Output {
             value,
             pubkey: pubkey.clone(),
         }],
-    })
+    ))
 }
 
 pub fn new_genesis_block(pubkey: &PublicKey, coinbase_value: Value) -> Block {
@@ -54,7 +54,7 @@ pub fn new_tx(
             pubkey: key.public_key(),
         });
     }
-    Ok(Transaction::new(TransactionData { inputs, outputs }))
+    Ok(Transaction::new(TransactionData::new(inputs, outputs)))
 }
 
 pub fn verify_tx_signatures(chain: &Blockchain, tx: &Transaction) -> bool {
