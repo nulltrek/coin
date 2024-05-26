@@ -36,12 +36,13 @@ impl Miner {
             tx_value = tx_value + chain.chain.get_tx_value(tx).unwrap();
         }
 
-        txs.push(Transaction::new(TransactionData::new(
+        txs.push(Transaction::new(TransactionData::new_with_timestamp(
             vec![],
             vec![Output {
                 value: chain.rules.coins_per_block + tx_value.fees,
                 pubkey: self.recipient.clone(),
             }],
+            (chain.height() - 1) as u64,
         )));
 
         println!("Target: {:0256b}", chain.rules.target);

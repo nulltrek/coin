@@ -175,6 +175,7 @@ impl Chain {
      * - Its hash is valid
      * - There are no inputs
      * - There is at least 1 output
+     * - The coinbase transaction timestamp must be equal to the last block's height
      * - The total output value is less than or equal to the coins per block consensus rule + fees on the block
      */
     fn validate_coinbase_tx(&self, block: &Block, tx: &Transaction) -> bool {
@@ -185,6 +186,11 @@ impl Chain {
         return tx.is_hash_valid()
             && tx.data.inputs.len() == 0
             && tx.data.outputs.len() > 0
+            && (block.data.prev_hash.is_zero()
+                || match self.chain.query_block(&block.data.prev_hash) {
+                    Some((height, _)) => tx.data.timestamp == height as u64,
+                    None => false,
+                })
             && match self.chain.get_tx_value(tx) {
                 Some(value) => {
                     value.input == 0
@@ -453,12 +459,13 @@ mod tests {
         let tx = Transaction::new(TransactionData::new(vec![], vec![]));
         assert!(!chain.validate_coinbase_tx(genesis, &tx));
 
-        let tx = Transaction::new(TransactionData::new(
+        let tx = Transaction::new(TransactionData::new_with_timestamp(
             vec![],
             vec![Output {
                 value: chain.rules.coins_per_block,
                 pubkey: key.public_key(),
             }],
+            0,
         ));
         assert!(chain.validate_coinbase_tx(genesis, &tx));
 
