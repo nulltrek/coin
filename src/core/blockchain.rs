@@ -266,23 +266,23 @@ mod tests {
     #[test]
     fn tx_output_value() {
         let key = KeyPair::new();
-        let tx = Transaction::new(TransactionData {
-            inputs: Vec::new(),
-            outputs: vec![Output {
+        let tx = Transaction::new(TransactionData::new(
+            Vec::new(),
+            vec![Output {
                 value: 10000,
                 pubkey: key.public_key().clone(),
             }],
-        });
+        ));
 
         assert_eq!(Blockchain::get_tx_output_value(&tx.data.outputs), 10000);
 
-        let tx = Transaction::new(TransactionData {
-            inputs: vec![Input {
+        let tx = Transaction::new(TransactionData::new(
+            vec![Input {
                 hash: Hash::new(b"test"),
                 index: 0,
                 signature: key.sign(b"test"),
             }],
-            outputs: vec![
+            vec![
                 Output {
                     value: 10,
                     pubkey: key.public_key(),
@@ -296,7 +296,7 @@ mod tests {
                     pubkey: key.public_key(),
                 },
             ],
-        });
+        ));
         assert_eq!(Blockchain::get_tx_output_value(&tx.data.outputs), 77);
     }
 
@@ -308,17 +308,17 @@ mod tests {
         let coinbase = &chain.list[0].data.transactions[0];
 
         let make_tx = |hash: &Hash, value: Value| {
-            Transaction::new(TransactionData {
-                inputs: vec![Input {
+            Transaction::new(TransactionData::new(
+                vec![Input {
                     hash: hash.clone(),
                     index: 0,
                     signature: key.sign(hash.digest()),
                 }],
-                outputs: vec![Output {
+                vec![Output {
                     value: value,
                     pubkey: key.public_key(),
                 }],
-            })
+            ))
         };
 
         let tx = make_tx(&coinbase.hash, 5000);
@@ -365,13 +365,13 @@ mod tests {
             genesis_hash,
             0,
             vec![
-                Transaction::new(TransactionData {
-                    inputs: vec![Input {
+                Transaction::new(TransactionData::new(
+                    vec![Input {
                         hash: coinbase_hash.clone(),
                         index: 0,
                         signature: key.sign(coinbase_hash.digest()),
                     }],
-                    outputs: vec![
+                    vec![
                         Output {
                             value: 5000,
                             pubkey: key.public_key(),
@@ -381,7 +381,7 @@ mod tests {
                             pubkey: key.public_key(),
                         },
                     ],
-                }),
+                )),
                 new_coinbase_tx(&key.public_key(), coinbase_value),
             ],
         ));

@@ -74,28 +74,28 @@ mod tests {
     fn hashing_equality() {
         let key = KeyPair::new();
         let txs = vec![
-            Transaction::new(TransactionData {
-                inputs: vec![Input {
+            Transaction::new(TransactionData::new(
+                vec![Input {
                     hash: Hash::new(b"test_1"),
                     index: 0,
                     signature: key.sign(b"test_1"),
                 }],
-                outputs: vec![Output {
+                vec![Output {
                     value: 1,
                     pubkey: key.public_key(),
                 }],
-            }),
-            Transaction::new(TransactionData {
-                inputs: vec![Input {
+            )),
+            Transaction::new(TransactionData::new(
+                vec![Input {
                     hash: Hash::new(b"test_2"),
                     index: 0,
                     signature: key.sign(b"test_2"),
                 }],
-                outputs: vec![Output {
+                vec![Output {
                     value: 1,
                     pubkey: key.public_key(),
                 }],
-            }),
+            )),
         ];
 
         let top_hash = Hash::new(
@@ -111,28 +111,28 @@ mod tests {
     fn hashing_inequality() {
         let key = KeyPair::new();
 
-        let tx_1 = Transaction::new(TransactionData {
-            inputs: vec![Input {
+        let tx_1 = Transaction::new(TransactionData::new(
+            vec![Input {
                 hash: Hash::new(b"test_1"),
                 index: 0,
                 signature: key.sign(b"test_1"),
             }],
-            outputs: vec![Output {
+            vec![Output {
                 value: 1,
                 pubkey: key.public_key(),
             }],
-        });
-        let tx_2 = Transaction::new(TransactionData {
-            inputs: vec![Input {
+        ));
+        let tx_2 = Transaction::new(TransactionData::new(
+            vec![Input {
                 hash: Hash::new(b"test_2"),
                 index: 0,
                 signature: key.sign(b"test_2"),
             }],
-            outputs: vec![Output {
+            vec![Output {
                 value: 1,
                 pubkey: key.public_key(),
             }],
-        });
+        ));
 
         let txs_1 = vec![tx_1.clone(), tx_2.clone()];
         let block_data_1 = BlockData::new(Hash::new(b"test"), 0, txs_1);
@@ -150,17 +150,17 @@ mod tests {
         let original = Block::new(BlockData::new(
             Hash::new(b"test"),
             0,
-            vec![Transaction::new(TransactionData {
-                inputs: vec![Input {
+            vec![Transaction::new(TransactionData::new(
+                vec![Input {
                     hash: Hash::new(b"test_1"),
                     index: 0,
                     signature: key.sign(b"test_1"),
                 }],
-                outputs: vec![Output {
+                vec![Output {
                     value: 1,
                     pubkey: key.public_key(),
                 }],
-            })],
+            ))],
         ));
 
         let temp_file = NamedTempFile::new().unwrap();

@@ -49,19 +49,19 @@ impl Iterator for BlockGen {
         let block = Block::new(BlockData::new(
             prev_hash,
             0,
-            vec![Transaction::new(TransactionData {
-                inputs: vec![Input {
+            vec![Transaction::new(TransactionData::new(
+                vec![Input {
                     hash: Hash::new(&name),
                     index: 0,
                     signature: self.keys.sign(&name),
                 }],
-                outputs: (0..self.output_count)
+                (0..self.output_count)
                     .map(|_| Output {
                         value: self.output_value,
                         pubkey: self.keys.public_key(),
                     })
                     .collect(),
-            })],
+            ))],
         ));
         self.index += 1;
         self.prev_hash = block.hash.clone();

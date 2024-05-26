@@ -36,13 +36,13 @@ impl Miner {
             tx_value = tx_value + chain.chain.get_tx_value(tx).unwrap();
         }
 
-        txs.push(Transaction::new(TransactionData {
-            inputs: vec![],
-            outputs: vec![Output {
+        txs.push(Transaction::new(TransactionData::new(
+            vec![],
+            vec![Output {
                 value: chain.rules.coins_per_block + tx_value.fees,
                 pubkey: self.recipient.clone(),
             }],
-        }));
+        )));
 
         println!("Target: {:0256b}", chain.rules.target);
         println!("Target leading: {}", chain.rules.target.leading_zeros());
@@ -107,17 +107,17 @@ mod tests {
         let last_block = chain.chain.get_last_block();
         let last_coinbase = &last_block.data.transactions[0];
 
-        let tx = Transaction::new(TransactionData {
-            inputs: vec![Input {
+        let tx = Transaction::new(TransactionData::new(
+            vec![Input {
                 hash: last_coinbase.hash.clone(),
                 index: 0,
                 signature: key_1.sign(last_coinbase.hash.digest()),
             }],
-            outputs: vec![Output {
+            vec![Output {
                 value: 5000,
                 pubkey: key_2.public_key(),
             }],
-        });
+        ));
 
         let mut miner = Miner::new(key_1.public_key());
         miner.add_tx(&chain, tx);
