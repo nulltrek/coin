@@ -1,8 +1,9 @@
 use crate::traits::io::{ByteIO, DeserializeError, FileIO};
 use ed25519_dalek::{
     Signature as DalekSignature, Signer, SigningKey, Verifier as DalekVerifier, VerifyingKey,
-    SECRET_KEY_LENGTH,
+    PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH,
 };
+use hex;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -13,9 +14,29 @@ pub trait Verifier {
 
 pub type PrivateKey = [u8; SECRET_KEY_LENGTH];
 
+#[derive(Debug)]
+pub struct PubkeyDeserializeError;
+
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct PublicKey {
-    value: [u8; SECRET_KEY_LENGTH],
+    value: [u8; PUBLIC_KEY_LENGTH],
+}
+
+impl PublicKey {
+    pub fn to_hex_str(&self) -> String {
+        hex::encode(self.value)
+    }
+
+    pub fn from_hex_str(string: &str) -> Result<PublicKey, PubkeyDeserializeError> {
+        let data = match hex::decode(string) {
+            Ok(value) => value,
+            Err(_) => return Err(PubkeyDeserializeError),
+        };
+        match data.as_slice().try_into() {
+            Ok(value) => Ok(PublicKey { value }),
+            Err(_) => Err(PubkeyDeserializeError),
+        }
+    }
 }
 
 impl Verifier for PublicKey {
@@ -30,17 +51,7 @@ impl Verifier for PublicKey {
 
 impl fmt::Debug for PublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.value
-                .iter()
-                .map(|e| format!("{:02x}", e))
-                .fold(String::new(), |mut acc, e| {
-                    acc.push_str(&e);
-                    acc
-                })
-        )
+        write!(f, "{}", self.to_hex_str())
     }
 }
 
@@ -139,6 +150,29 @@ mod tests {
             Ok(_) => false,
             Err(_) => true,
         });
+    }
+
+    #[test]
+    fn hex() {
+        let pubkey = PublicKey {
+            value: [
+                159, 134, 208, 129, 136, 76, 125, 101, 154, 47, 234, 160, 197, 90, 208, 21, 163,
+                191, 79, 27, 43, 11, 130, 44, 209, 93, 108, 21, 176, 240, 10, 8,
+            ],
+        };
+
+        assert_eq!(
+            pubkey.to_hex_str(),
+            "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+        );
+
+        assert_eq!(
+            PublicKey::from_hex_str(
+                "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+            )
+            .unwrap(),
+            pubkey,
+        )
     }
 
     #[test]
