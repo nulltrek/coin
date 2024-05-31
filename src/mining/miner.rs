@@ -6,7 +6,9 @@ use crate::core::hash::Hash;
 use crate::core::keys::PublicKey;
 use crate::core::transaction::{Output, Transaction, TransactionData};
 use crate::utils::new_block;
-use std::collections::HashMap;
+use crate::utxo::Utxo;
+use rand::seq::SliceRandom;
+use std::collections::{HashMap, HashSet};
 
 pub struct Miner {
     recipient: PublicKey,
@@ -23,12 +25,34 @@ impl Miner {
 
     pub fn mine(&mut self, chain: &Chain) -> Option<Block> {
         let tx_count: usize = 10;
-        let mut txs: Vec<Transaction> = self
-            .pool
-            .iter()
-            .take(tx_count)
-            .map(|(_, tx)| tx.clone())
-            .collect();
+
+        let mut rng = &mut rand::thread_rng();
+
+        let mut txs = Vec::<Transaction>::new();
+        let mut selected_utxos = HashSet::<Utxo>::new();
+        for _ in 0..10 {
+            txs.clear();
+            selected_utxos.clear();
+            for (_, tx) in self
+                .pool
+                .iter()
+                .collect::<Vec<_>>()
+                .choose_multiple(&mut rng, tx_count)
+            {
+                if merge_utxos(&tx, &mut selected_utxos) {
+                    txs.push((*tx).clone());
+                }
+            }
+
+            if txs.len() > 1 {
+                break;
+            }
+        }
+
+        if txs.is_empty() {
+            println!("Failed to collect transactions");
+            return None;
+        }
 
         let mut tx_value = TransactionValue::default();
         for tx in txs.iter() {
@@ -58,6 +82,7 @@ impl Miner {
             if chain.rules.validate_target(&block.hash) {
                 println!("Total tries: {}", block.data.nonce + 1);
                 println!("Hash: {:0256b}", Target::from_hash(&block.hash));
+                self.cleanup_pool(&selected_utxos);
                 return Some(block);
             }
             let mut block_data = block.data;
@@ -85,6 +110,27 @@ impl Miner {
         }
         return false;
     }
+
+    pub fn cleanup_pool(&mut self, utxos: &HashSet<Utxo>) {
+        self.pool.retain(|_, tx| utxos.is_disjoint(&get_utxos(&tx)))
+    }
+}
+
+fn get_utxos(tx: &Transaction) -> HashSet<Utxo> {
+    tx.data
+        .inputs
+        .iter()
+        .map(|input| Utxo::new(input.hash.clone(), input.index, 0))
+        .collect()
+}
+
+fn merge_utxos(tx: &Transaction, utxos: &mut HashSet<Utxo>) -> bool {
+    let tx_utxos = get_utxos(tx);
+    if !utxos.is_disjoint(&tx_utxos) {
+        return false;
+    }
+    utxos.extend(tx_utxos.into_iter());
+    return true;
 }
 
 #[cfg(test)]

@@ -204,11 +204,12 @@ impl Chain {
 
     /*
      * The order of transactions in a block matters. There cannot be two or more
-     * transactions in a block which spend the same utxo.
+     * transactions in a block which spend the same utxo. This function checks
+     * for double spends in a list of transactions.
      */
-    pub fn validate_block_double_spend(&self, block: &Block) -> bool {
+    pub fn validate_double_spend(&self, transactions: &[Transaction]) -> bool {
         let mut inputs = HashSet::<(Hash, u32)>::new();
-        for tx in &block.data.transactions {
+        for tx in transactions {
             for input in &tx.data.inputs {
                 let cur = (input.hash.clone(), input.index);
                 if inputs.contains(&cur) {
@@ -244,7 +245,7 @@ impl Chain {
                 .fold(true, |acc, tx| acc && self.validate_tx(tx))
             && (self.validate_coinbase_tx(block, block.data.transactions.last().unwrap())
                 || self.validate_tx(block.data.transactions.last().unwrap()))
-            && self.validate_block_double_spend(&block);
+            && self.validate_double_spend(&block.data.transactions);
     }
 
     pub fn validate_block(&self, block: &Block) -> bool {
@@ -561,7 +562,7 @@ mod tests {
             hash: Hash::new(b"test"),
             data: BlockData::new(last_block.hash.clone(), 0, vec![tx.clone(), tx]),
         };
-        assert!(!chain.validate_block_double_spend(&block));
+        assert!(!chain.validate_double_spend(&block.data.transactions));
     }
 
     #[test]
