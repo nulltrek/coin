@@ -13,6 +13,7 @@ use std::process::ExitCode;
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::Duration;
 
 #[derive(Parser)]
 #[command(name = "Coin Node")]
@@ -171,24 +172,32 @@ fn command_start(path: &PathBuf, recipient: &PathBuf) -> bool {
     let miner_miner_ref = miner.clone();
     let (miner_sender, miner_receiver) = mpsc::channel();
     let miner_task = thread::spawn(move || {
-        while let Ok(command) = miner_receiver.recv() {
-            match command {
-                MinerCommand::Stop => return,
-                MinerCommand::Mine => {
-                    let mut chain = chain_miner_ref.lock().unwrap();
-                    let result = miner_miner_ref.lock().unwrap().mine(&chain);
-                    if let Some(block) = result {
-                        match chain.add_block(block) {
-                            Ok(height) => println!(
-                                "Mining successful, inserted block with height: {}",
-                                height
-                            ),
-                            Err(_) => println!("Mining failed, block is not valid."),
-                        }
-                    } else {
-                        println!("Mining failed, block discarded.");
+        let mine = || {
+            let mut chain = chain_miner_ref.lock().unwrap();
+            match miner_miner_ref.lock().unwrap().mine(&chain) {
+                Ok(block) => match chain.add_block(block) {
+                    Ok(height) => {
+                        println!("Mining successful, inserted block with height: {}", height)
                     }
+                    Err(_) => println!("Mining failed, block is not valid."),
+                },
+                Err(err) => {
+                    println!("Mining aborted: {:?}", err);
                 }
+            }
+        };
+
+        loop {
+            match miner_receiver.recv_timeout(Duration::from_secs(60)) {
+                Ok(command) => match command {
+                    MinerCommand::Stop => return,
+                    MinerCommand::Mine => {
+                        if miner_miner_ref.lock().unwrap().pool.len() > 10 {
+                            mine();
+                        }
+                    }
+                },
+                Err(_) => mine(),
             }
         }
     });
@@ -225,9 +234,7 @@ fn command_start(path: &PathBuf, recipient: &PathBuf) -> bool {
 
             let mut miner = miner_ref.lock().unwrap();
             if miner.add_tx(&chain_ref.lock().unwrap(), tx) {
-                if miner.pool.len() > 1 {
-                    let _ = miner_sender_ref.send(MinerCommand::Mine);
-                }
+                let _ = miner_sender_ref.send(MinerCommand::Mine);
                 Response::ok("")
             } else {
                 Response::client_error()

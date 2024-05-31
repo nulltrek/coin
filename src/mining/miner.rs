@@ -10,6 +10,12 @@ use crate::utxo::Utxo;
 use rand::seq::SliceRandom;
 use std::collections::{HashMap, HashSet};
 
+#[derive(Debug)]
+pub enum MiningError {
+    NotEnoughTransactions,
+    NoBlockFound,
+}
+
 pub struct Miner {
     recipient: PublicKey,
     pub pool: HashMap<Hash, Transaction>,
@@ -23,8 +29,9 @@ impl Miner {
         }
     }
 
-    pub fn mine(&mut self, chain: &Chain) -> Option<Block> {
-        let tx_count: usize = 10;
+    pub fn mine(&mut self, chain: &Chain) -> Result<Block, MiningError> {
+        println!("Start mining");
+        let tx_count: usize = 5;
 
         let mut rng = &mut rand::thread_rng();
 
@@ -51,7 +58,7 @@ impl Miner {
 
         if txs.is_empty() {
             println!("Failed to collect transactions");
-            return None;
+            return Err(MiningError::NotEnoughTransactions);
         }
 
         let mut tx_value = TransactionValue::default();
@@ -83,7 +90,7 @@ impl Miner {
                 println!("Total tries: {}", block.data.nonce + 1);
                 println!("Hash: {:0256b}", Target::from_hash(&block.hash));
                 self.cleanup_pool(&selected_utxos);
-                return Some(block);
+                return Ok(block);
             }
             let mut block_data = block.data;
             if block_data.nonce == u32::MAX {
@@ -91,7 +98,7 @@ impl Miner {
                 for tx in block_data.transactions {
                     self.add_tx(chain, tx);
                 }
-                return None;
+                return Err(MiningError::NoBlockFound);
             }
             block_data.nonce += 1;
 
@@ -173,7 +180,7 @@ mod tests {
 
         let block = miner.mine(&chain);
 
-        assert!(block.is_some());
+        assert!(block.is_ok());
 
         let block = block.unwrap();
         assert!(chain.validate_block(&block));
