@@ -9,6 +9,7 @@ use crate::utils::*;
 use crate::utxo::Utxo;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 #[derive(Debug, Clone)]
 pub struct UtxoPool {
@@ -155,6 +156,7 @@ impl Chain {
      * - There is at least 1 input
      * - There is at least 1 output
      * - For each input, its signature is valid (using the referenced output pubkey)
+     * - The inputs are unspent
      * - For each output, its value is greater than zero
      * - The total input value is greater than or equal to the total ouput value
      */
@@ -201,6 +203,24 @@ impl Chain {
     }
 
     /*
+     * The order of transactions in a block matters. There cannot be two or more
+     * transactions in a block which spend the same utxo.
+     */
+    pub fn validate_block_double_spend(&self, block: &Block) -> bool {
+        let mut inputs = HashSet::<(Hash, u32)>::new();
+        for tx in &block.data.transactions {
+            for input in &tx.data.inputs {
+                let cur = (input.hash.clone(), input.index);
+                if inputs.contains(&cur) {
+                    return false;
+                }
+                inputs.insert(cur);
+            }
+        }
+        return true;
+    }
+
+    /*
      * A block is valid if:
      * - Its hash is valid
      * - The block points to the previous block
@@ -223,7 +243,8 @@ impl Chain {
                 .iter()
                 .fold(true, |acc, tx| acc && self.validate_tx(tx))
             && (self.validate_coinbase_tx(block, block.data.transactions.last().unwrap())
-                || self.validate_tx(block.data.transactions.last().unwrap()));
+                || self.validate_tx(block.data.transactions.last().unwrap()))
+            && self.validate_block_double_spend(&block);
     }
 
     pub fn validate_block(&self, block: &Block) -> bool {
@@ -516,6 +537,34 @@ mod tests {
     }
 
     #[test]
+    fn validate_block_double_spend() {
+        let key_1 = KeyPair::new();
+        let key_2 = KeyPair::new();
+
+        let chain = Chain::new(&key_1.public_key());
+        let last_block = chain.chain.get_last_block();
+        let last_coinbase = &last_block.data.transactions[0];
+
+        let tx = Transaction::new(TransactionData::new(
+            vec![Input {
+                hash: last_coinbase.hash.clone(),
+                index: 0,
+                signature: key_1.sign(last_coinbase.hash.digest()),
+            }],
+            vec![Output {
+                value: 5000,
+                pubkey: key_2.public_key(),
+            }],
+        ));
+
+        let block = Block {
+            hash: Hash::new(b"test"),
+            data: BlockData::new(last_block.hash.clone(), 0, vec![tx.clone(), tx]),
+        };
+        assert!(!chain.validate_block_double_spend(&block));
+    }
+
+    #[test]
     fn validate_block() {
         let key_1 = KeyPair::new();
         let key_2 = KeyPair::new();
@@ -542,6 +591,12 @@ mod tests {
                 pubkey: key_1.public_key(),
             }],
         ));
+
+        let block = Block {
+            hash: Hash::new(b"test"),
+            data: BlockData::new(last_block.hash.clone(), 0, vec![valid_tx.clone()]),
+        };
+        assert!(!chain.validate_block(&block));
 
         let block = Block {
             hash: Hash::new(b"test"),
@@ -588,7 +643,7 @@ mod tests {
             0,
             vec![valid_tx.clone(), valid_tx.clone()],
         ));
-        assert!(chain.validate_block(&block));
+        assert!(!chain.validate_block(&block));
     }
 
     #[test]
