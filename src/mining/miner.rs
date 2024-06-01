@@ -144,7 +144,7 @@ fn merge_utxos(tx: &Transaction, utxos: &mut HashSet<Utxo>) -> bool {
 mod tests {
     use super::*;
     use crate::chain::Chain;
-    use crate::consensus::ConsensusRules;
+    use crate::consensus::{ConsensusRules, Halving};
     use crate::core::keys::KeyPair;
     use crate::core::transaction::{Input, Output, TransactionData};
 
@@ -155,7 +155,7 @@ mod tests {
 
         let mut chain = Chain::new_with_consensus(
             &key_1.public_key(),
-            ConsensusRules::new(Target::from_leading_zeros(0)),
+            ConsensusRules::new(Target::from_leading_zeros(0), Halving::None),
         );
 
         let last_block = chain.chain.get_last_block();

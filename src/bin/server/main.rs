@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 use coin::chain::{Chain, SerializableChain};
-use coin::consensus::{ConsensusRules, Target};
+use coin::consensus::{ConsensusRules, Halving, Target};
 use coin::core::keys::{KeyPair, PublicKey};
 use coin::core::transaction::Transaction;
 use coin::mining::miner::Miner;
@@ -68,7 +68,7 @@ fn command_new(path: &PathBuf, key: &PathBuf) -> bool {
 
     let chain = Chain::new_with_consensus(
         &key.public_key(),
-        ConsensusRules::new(Target::from_leading_zeros(15)),
+        ConsensusRules::new(Target::from_leading_zeros(15), Halving::None),
     );
     match SerializableChain::new(chain).to_file(path) {
         Ok(_) => println!("Chain saved to file: {}", path.display()),
