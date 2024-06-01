@@ -103,7 +103,7 @@ pub enum Halving {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ConsensusRules {
     pub target: Target,
-    pub coins_per_block: Value,
+    pub base_coins: Value,
     pub halving: Halving,
 }
 
@@ -111,18 +111,18 @@ impl Default for ConsensusRules {
     fn default() -> ConsensusRules {
         ConsensusRules {
             target: Target::MAX,
-            coins_per_block: 10000,
+            base_coins: 10000,
             halving: Halving::None,
         }
     }
 }
 
 impl ConsensusRules {
-    pub fn new(target: Target, halving: Halving) -> ConsensusRules {
+    pub fn new(target: Target, base_coins: Value, halving: Halving) -> ConsensusRules {
         ConsensusRules {
             target,
+            base_coins,
             halving,
-            ..ConsensusRules::default()
         }
     }
 
@@ -132,12 +132,12 @@ impl ConsensusRules {
 
     pub fn reward(&self, height: u64) -> Value {
         match self.halving {
-            Halving::None => self.coins_per_block,
+            Halving::None => self.base_coins,
             Halving::Height(0) => panic!("Invalid halving value"),
-            Halving::Height(value) => self.coins_per_block / ((height / value) + 1),
+            Halving::Height(value) => self.base_coins / ((height / value) + 1),
             Halving::Inf => {
                 if height == 0 {
-                    self.coins_per_block
+                    self.base_coins
                 } else {
                     0
                 }
@@ -171,7 +171,7 @@ mod tests {
         ])
         .unwrap();
 
-        let cr = ConsensusRules::new(Target::from_leading_zeros(255), Halving::None);
+        let cr = ConsensusRules::new(Target::from_leading_zeros(255), 10000, Halving::None);
         assert!(!cr.validate_target(&hash));
 
         let hash = Hash::from_bytes(&[
@@ -180,44 +180,44 @@ mod tests {
         ])
         .unwrap();
 
-        let cr = ConsensusRules::new(Target::from_leading_zeros(198), Halving::None);
+        let cr = ConsensusRules::new(Target::from_leading_zeros(198), 10000, Halving::None);
         assert!(cr.validate_target(&hash));
-        let cr = ConsensusRules::new(Target::from_leading_zeros(200), Halving::None);
+        let cr = ConsensusRules::new(Target::from_leading_zeros(200), 10000, Halving::None);
         assert!(!cr.validate_target(&hash));
     }
 
     #[test]
     fn halving() {
-        let cr = ConsensusRules::new(Target::MAX, Halving::None);
+        let cr = ConsensusRules::new(Target::MAX, 10000, Halving::None);
 
-        assert_eq!(cr.reward(0), cr.coins_per_block);
-        assert_eq!(cr.reward(1), cr.coins_per_block);
-        assert_eq!(cr.reward(11), cr.coins_per_block);
-        assert_eq!(cr.reward(101), cr.coins_per_block);
-        assert_eq!(cr.reward(10000000), cr.coins_per_block);
+        assert_eq!(cr.reward(0), cr.base_coins);
+        assert_eq!(cr.reward(1), cr.base_coins);
+        assert_eq!(cr.reward(11), cr.base_coins);
+        assert_eq!(cr.reward(101), cr.base_coins);
+        assert_eq!(cr.reward(10000000), cr.base_coins);
 
-        let cr = ConsensusRules::new(Target::MAX, Halving::Inf);
+        let cr = ConsensusRules::new(Target::MAX, 10000, Halving::Inf);
 
-        assert_eq!(cr.reward(0), cr.coins_per_block);
+        assert_eq!(cr.reward(0), cr.base_coins);
         assert_eq!(cr.reward(1), 0);
         assert_eq!(cr.reward(11), 0);
         assert_eq!(cr.reward(101), 0);
         assert_eq!(cr.reward(10000000), 0);
 
-        let cr = ConsensusRules::new(Target::MAX, Halving::Height(10));
+        let cr = ConsensusRules::new(Target::MAX, 10000, Halving::Height(10));
 
-        assert_eq!(cr.reward(0), cr.coins_per_block);
-        assert_eq!(cr.reward(1), cr.coins_per_block);
-        assert_eq!(cr.reward(11), cr.coins_per_block / 2);
-        assert_eq!(cr.reward(101), cr.coins_per_block / 11);
+        assert_eq!(cr.reward(0), cr.base_coins);
+        assert_eq!(cr.reward(1), cr.base_coins);
+        assert_eq!(cr.reward(11), cr.base_coins / 2);
+        assert_eq!(cr.reward(101), cr.base_coins / 11);
         assert_eq!(cr.reward(10000000), 0);
 
-        let cr = ConsensusRules::new(Target::MAX, Halving::Height(200000));
+        let cr = ConsensusRules::new(Target::MAX, 500, Halving::Height(200000));
 
-        assert_eq!(cr.reward(0), cr.coins_per_block);
-        assert_eq!(cr.reward(200000), cr.coins_per_block / 2);
-        assert_eq!(cr.reward(400000), cr.coins_per_block / 3);
-        assert_eq!(cr.reward(2000000000), 0);
+        assert_eq!(cr.reward(0), cr.base_coins);
+        assert_eq!(cr.reward(200000), cr.base_coins / 2);
+        assert_eq!(cr.reward(400000), cr.base_coins / 3);
+        assert_eq!(cr.reward(100000000), 0);
     }
 
     #[test]

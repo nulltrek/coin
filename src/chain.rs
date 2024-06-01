@@ -96,12 +96,12 @@ impl Chain {
 
     pub fn new(pubkey: &PublicKey) -> Chain {
         let rules = ConsensusRules::default();
-        let genesis = new_genesis_block(pubkey, rules.coins_per_block);
+        let genesis = new_genesis_block(pubkey, rules.base_coins);
         Self::init(rules, Blockchain::new(genesis))
     }
 
     pub fn new_with_consensus(pubkey: &PublicKey, rules: ConsensusRules) -> Chain {
-        let genesis = new_genesis_block(pubkey, rules.coins_per_block);
+        let genesis = new_genesis_block(pubkey, rules.base_coins);
         Self::init(rules, Blockchain::new(genesis))
     }
 
@@ -128,7 +128,7 @@ impl Chain {
      * - It contains only 1 coinbase transaction
      * - The transaction has 0 input and at least 1 output
      * - The value of the tx outputs must be less or equal to the
-     *   coins_per_block value
+     *   base_coins value
      */
     pub fn validate_genesis(&self) -> bool {
         let genesis = &self.chain.list[0];
@@ -137,7 +137,7 @@ impl Chain {
             && genesis.data.transactions[0].data.inputs.len() == 0
             && genesis.data.transactions[0].data.outputs.len() > 0
             && match self.chain.get_tx_value(&genesis.data.transactions[0]) {
-                Some(value) => value.output <= self.rules.coins_per_block,
+                Some(value) => value.output <= self.rules.base_coins,
                 None => false,
             };
     }
@@ -196,7 +196,7 @@ impl Chain {
             && match self.chain.get_tx_value(tx) {
                 Some(value) => {
                     value.input == 0
-                        && value.output <= (self.rules.coins_per_block + block_value.unwrap().fees)
+                        && value.output <= (self.rules.base_coins + block_value.unwrap().fees)
                 }
                 None => false,
             };
@@ -340,11 +340,11 @@ mod tests {
 
         let utxos = chain.find_all_utxos();
         assert_eq!(utxos.len(), 1);
-        assert_eq!(utxos[0].value, chain.rules.coins_per_block);
+        assert_eq!(utxos[0].value, chain.rules.base_coins);
 
         let utxos = chain.find_utxos_for_key(&key.public_key());
         assert_eq!(utxos.len(), 1);
-        assert_eq!(utxos[0].value, chain.rules.coins_per_block);
+        assert_eq!(utxos[0].value, chain.rules.base_coins);
 
         let utxos = chain.find_utxos_for_key(&KeyPair::new().public_key());
         assert_eq!(utxos.len(), 0);
@@ -456,7 +456,7 @@ mod tests {
                 signature: key_1.sign(coinbase.hash.digest()),
             }],
             vec![Output {
-                value: chain.rules.coins_per_block + 1,
+                value: chain.rules.base_coins + 1,
                 pubkey: key_2.public_key(),
             }],
         ));
@@ -484,7 +484,7 @@ mod tests {
         let tx = Transaction::new(TransactionData::new_with_timestamp(
             vec![],
             vec![Output {
-                value: chain.rules.coins_per_block,
+                value: chain.rules.base_coins,
                 pubkey: key.public_key(),
             }],
             0,
@@ -494,7 +494,7 @@ mod tests {
         let tx = Transaction::new(TransactionData::new(
             vec![],
             vec![Output {
-                value: chain.rules.coins_per_block + 5000,
+                value: chain.rules.base_coins + 5000,
                 pubkey: key.public_key(),
             }],
         ));
@@ -519,7 +519,7 @@ mod tests {
         let tx = Transaction::new(TransactionData::new(
             vec![],
             vec![Output {
-                value: chain.rules.coins_per_block,
+                value: chain.rules.base_coins,
                 pubkey: key.public_key(),
             }],
         ));
@@ -529,7 +529,7 @@ mod tests {
         let tx = Transaction::new(TransactionData::new(
             vec![],
             vec![Output {
-                value: chain.rules.coins_per_block + 5001,
+                value: chain.rules.base_coins + 5001,
                 pubkey: key.public_key(),
             }],
         ));
@@ -588,7 +588,7 @@ mod tests {
         let valid_coinbase_tx = Transaction::new(TransactionData::new(
             vec![],
             vec![Output {
-                value: chain.rules.coins_per_block,
+                value: chain.rules.base_coins,
                 pubkey: key_1.public_key(),
             }],
         ));
@@ -670,7 +670,7 @@ mod tests {
         let valid_coinbase_tx = Transaction::new(TransactionData::new(
             vec![],
             vec![Output {
-                value: chain.rules.coins_per_block,
+                value: chain.rules.base_coins,
                 pubkey: key_1.public_key(),
             }],
         ));
@@ -692,7 +692,7 @@ mod tests {
 
         let mut chain = Chain::new_with_consensus(
             &key_1.public_key(),
-            ConsensusRules::new(Target::from_leading_zeros(254), Halving::None),
+            ConsensusRules::new(Target::from_leading_zeros(254), 10000, Halving::None),
         );
         let last_block = chain.chain.get_last_block();
         let last_coinbase = &last_block.data.transactions[0];
@@ -712,7 +712,7 @@ mod tests {
         let valid_coinbase_tx = Transaction::new(TransactionData::new(
             vec![],
             vec![Output {
-                value: chain.rules.coins_per_block + 5000,
+                value: chain.rules.base_coins + 5000,
                 pubkey: key_1.public_key(),
             }],
         ));
@@ -740,7 +740,7 @@ mod tests {
         let utxos_1 = chain.find_utxos_for_key(&key_1.public_key());
         assert_eq!(
             utxos_1.iter().fold(0, |acc, u| acc + u.value),
-            (chain.rules.coins_per_block * 2) - 5000
+            (chain.rules.base_coins * 2) - 5000
         );
 
         let utxos_2 = chain.find_utxos_for_key(&key_2.public_key());
@@ -816,7 +816,7 @@ mod tests {
 
             assert_eq!(
                 accounts.iter().fold(0, |tot, account| tot + account.2),
-                chain.rules.coins_per_block
+                chain.rules.base_coins
             );
         }
         assert_eq!(chain.height(), iterations + 1);

@@ -68,7 +68,7 @@ fn command_new(path: &PathBuf, key: &PathBuf) -> bool {
 
     let chain = Chain::new_with_consensus(
         &key.public_key(),
-        ConsensusRules::new(Target::from_leading_zeros(15), Halving::None),
+        ConsensusRules::new(Target::from_leading_zeros(15), 10000, Halving::None),
     );
     match SerializableChain::new(chain).to_file(path) {
         Ok(_) => println!("Chain saved to file: {}", path.display()),

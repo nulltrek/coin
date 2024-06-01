@@ -70,7 +70,7 @@ impl Miner {
         txs.push(Transaction::new(TransactionData::new_with_timestamp(
             vec![],
             vec![Output {
-                value: chain.rules.coins_per_block + tx_value.fees,
+                value: chain.rules.base_coins + tx_value.fees,
                 pubkey: self.recipient.clone(),
             }],
             (chain.height() - 1) as u64,
@@ -155,7 +155,7 @@ mod tests {
 
         let mut chain = Chain::new_with_consensus(
             &key_1.public_key(),
-            ConsensusRules::new(Target::from_leading_zeros(0), Halving::None),
+            ConsensusRules::new(Target::from_leading_zeros(0), 10000, Halving::None),
         );
 
         let last_block = chain.chain.get_last_block();
