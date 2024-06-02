@@ -22,12 +22,16 @@ pub struct Output {
 pub struct TransactionData {
     pub inputs: Vec<Input>,
     pub outputs: Vec<Output>,
-    pub timestamp: u64,
+    pub timestamp: Option<u64>,
 }
 
 impl TransactionData {
     pub fn new(inputs: Vec<Input>, outputs: Vec<Output>) -> TransactionData {
-        TransactionData::new_with_timestamp(inputs, outputs, 0)
+        TransactionData {
+            inputs,
+            outputs,
+            timestamp: None,
+        }
     }
 
     pub fn new_with_timestamp(
@@ -38,7 +42,7 @@ impl TransactionData {
         TransactionData {
             inputs,
             outputs,
-            timestamp,
+            timestamp: Some(timestamp),
         }
     }
 }

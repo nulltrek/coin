@@ -22,13 +22,14 @@ pub fn json_to_utxos(json: &str) -> Result<Vec<Utxo>, DeserializeError> {
     }
 }
 
-pub fn new_coinbase_tx(pubkey: &PublicKey, value: Value) -> Transaction {
-    Transaction::new(TransactionData::new(
+pub fn new_coinbase_tx(pubkey: &PublicKey, value: Value, timestamp: u64) -> Transaction {
+    Transaction::new(TransactionData::new_with_timestamp(
         Vec::new(),
         vec![Output {
             value,
             pubkey: pubkey.clone(),
         }],
+        timestamp,
     ))
 }
 
@@ -36,7 +37,7 @@ pub fn new_genesis_block(pubkey: &PublicKey, coinbase_value: Value) -> Block {
     Block::new(BlockData::new(
         Hash::default(),
         0,
-        vec![new_coinbase_tx(pubkey, coinbase_value)],
+        vec![new_coinbase_tx(pubkey, coinbase_value, 0)],
     ))
 }
 

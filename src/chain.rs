@@ -159,6 +159,7 @@ impl Chain {
      * - The inputs are unspent
      * - For each output, its value is greater than zero
      * - The total input value is greater than or equal to the total ouput value
+     * - It doesn't have a timestamp
      */
     pub fn validate_tx(&self, tx: &Transaction) -> bool {
         return tx.is_hash_valid()
@@ -169,7 +170,8 @@ impl Chain {
             && match self.chain.get_tx_value(tx) {
                 Some(value) => value.output > 0 && value.input >= value.output,
                 None => false,
-            };
+            }
+            && tx.data.timestamp.is_none();
     }
 
     /*
@@ -190,7 +192,9 @@ impl Chain {
             && tx.data.outputs.len() > 0
             && (block.data.prev_hash.is_zero()
                 || match self.chain.query_block(&block.data.prev_hash) {
-                    Some((height, _)) => tx.data.timestamp == height as u64,
+                    Some((height, _)) => {
+                        tx.data.timestamp.is_some() && tx.data.timestamp.unwrap() == height as u64
+                    }
                     None => false,
                 })
             && match self.chain.get_tx_value(tx) {
@@ -490,6 +494,44 @@ mod tests {
         let tx = Transaction::new(TransactionData::new(vec![], vec![]));
         assert!(!chain.validate_coinbase_tx(Height::from(0), genesis, &tx));
 
+        let tx = Transaction::new(TransactionData::new(
+            vec![],
+            vec![Output {
+                value: chain.rules.base_coins,
+                pubkey: key.public_key(),
+            }],
+        ));
+        assert!(chain.validate_coinbase_tx(Height::from(0), genesis, &tx));
+
+        let tx = Transaction::new(TransactionData::new_with_timestamp(
+            vec![],
+            vec![Output {
+                value: chain.rules.base_coins + 5000,
+                pubkey: key.public_key(),
+            }],
+            0,
+        ));
+        let block = Block::new(BlockData::new(
+            genesis.hash.clone(),
+            0,
+            vec![
+                Transaction::new(TransactionData::new(
+                    vec![Input {
+                        hash: coinbase.hash.clone(),
+                        index: 0,
+                        signature: key.sign(coinbase.hash.digest()),
+                    }],
+                    vec![Output {
+                        value: 5000,
+                        pubkey: key.public_key(),
+                    }],
+                )),
+                tx.clone(),
+            ],
+        ));
+
+        assert!(chain.validate_coinbase_tx(Height::from(1), &block, &tx));
+
         let tx = Transaction::new(TransactionData::new_with_timestamp(
             vec![],
             vec![Output {
@@ -498,49 +540,16 @@ mod tests {
             }],
             0,
         ));
-        assert!(chain.validate_coinbase_tx(Height::from(0), genesis, &tx));
-
-        let tx = Transaction::new(TransactionData::new(
-            vec![],
-            vec![Output {
-                value: chain.rules.base_coins + 5000,
-                pubkey: key.public_key(),
-            }],
-        ));
-        let block = Block::new(BlockData::new(
-            genesis.hash.clone(),
-            0,
-            vec![Transaction::new(TransactionData::new(
-                vec![Input {
-                    hash: coinbase.hash.clone(),
-                    index: 0,
-                    signature: key.sign(coinbase.hash.digest()),
-                }],
-                vec![Output {
-                    value: 5000,
-                    pubkey: key.public_key(),
-                }],
-            ))],
-        ));
 
         assert!(chain.validate_coinbase_tx(Height::from(1), &block, &tx));
 
-        let tx = Transaction::new(TransactionData::new(
-            vec![],
-            vec![Output {
-                value: chain.rules.base_coins,
-                pubkey: key.public_key(),
-            }],
-        ));
-
-        assert!(chain.validate_coinbase_tx(Height::from(1), &block, &tx));
-
-        let tx = Transaction::new(TransactionData::new(
+        let tx = Transaction::new(TransactionData::new_with_timestamp(
             vec![],
             vec![Output {
                 value: chain.rules.base_coins + 5001,
                 pubkey: key.public_key(),
             }],
+            0,
         ));
 
         assert!(!chain.validate_coinbase_tx(Height::from(1), &block, &tx));
@@ -594,12 +603,13 @@ mod tests {
                 pubkey: key_2.public_key(),
             }],
         ));
-        let valid_coinbase_tx = Transaction::new(TransactionData::new(
+        let valid_coinbase_tx = Transaction::new(TransactionData::new_with_timestamp(
             vec![],
             vec![Output {
                 value: chain.rules.base_coins,
                 pubkey: key_1.public_key(),
             }],
+            0,
         ));
 
         let block = Block {
@@ -676,12 +686,13 @@ mod tests {
                 pubkey: key_2.public_key(),
             }],
         ));
-        let valid_coinbase_tx = Transaction::new(TransactionData::new(
+        let valid_coinbase_tx = Transaction::new(TransactionData::new_with_timestamp(
             vec![],
             vec![Output {
                 value: chain.rules.base_coins,
                 pubkey: key_1.public_key(),
             }],
+            0,
         ));
 
         let result = chain.chain.append(Block::new(BlockData::new(
@@ -718,12 +729,13 @@ mod tests {
                 pubkey: key_2.public_key(),
             }],
         ));
-        let valid_coinbase_tx = Transaction::new(TransactionData::new(
+        let valid_coinbase_tx = Transaction::new(TransactionData::new_with_timestamp(
             vec![],
             vec![Output {
                 value: chain.rules.base_coins + 5000,
                 pubkey: key_1.public_key(),
             }],
+            0,
         ));
 
         let result = chain.add_block(Block::new(BlockData::new(
@@ -780,12 +792,13 @@ mod tests {
                 pubkey: key_2.public_key(),
             }],
         ));
-        let invalid_coinbase_tx = Transaction::new(TransactionData::new(
+        let invalid_coinbase_tx = Transaction::new(TransactionData::new_with_timestamp(
             vec![],
             vec![Output {
                 value: 5001,
                 pubkey: key_1.public_key(),
             }],
+            0,
         ));
 
         let result = chain.add_block(Block::new(BlockData::new(
@@ -797,12 +810,13 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), ChainOpError::InvalidBlock);
 
-        let valid_coinbase_tx = Transaction::new(TransactionData::new(
+        let valid_coinbase_tx = Transaction::new(TransactionData::new_with_timestamp(
             vec![],
             vec![Output {
                 value: 5000,
                 pubkey: key_1.public_key(),
             }],
+            0,
         ));
 
         let result = chain.add_block(Block::new(BlockData::new(
@@ -848,12 +862,13 @@ mod tests {
                 pubkey: key_2.public_key(),
             }],
         ));
-        let invalid_coinbase_tx = Transaction::new(TransactionData::new(
+        let invalid_coinbase_tx = Transaction::new(TransactionData::new_with_timestamp(
             vec![],
             vec![Output {
                 value: 10001,
                 pubkey: key_1.public_key(),
             }],
+            0,
         ));
 
         let result = chain.add_block(Block::new(BlockData::new(
@@ -865,12 +880,13 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), ChainOpError::InvalidBlock);
 
-        let valid_coinbase_tx = Transaction::new(TransactionData::new(
+        let valid_coinbase_tx = Transaction::new(TransactionData::new_with_timestamp(
             vec![],
             vec![Output {
                 value: 10000,
                 pubkey: key_1.public_key(),
             }],
+            0,
         ));
 
         let result = chain.add_block(Block::new(BlockData::new(
