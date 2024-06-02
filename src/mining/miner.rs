@@ -70,7 +70,7 @@ impl Miner {
         txs.push(Transaction::new(TransactionData::new_with_timestamp(
             vec![],
             vec![Output {
-                value: chain.rules.base_coins + tx_value.fees,
+                value: chain.rules.reward(chain.height()) + tx_value.fees,
                 pubkey: self.recipient.clone(),
             }],
             chain.height() - 1,

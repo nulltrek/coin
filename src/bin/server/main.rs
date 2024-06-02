@@ -68,7 +68,7 @@ fn command_new(path: &PathBuf, key: &PathBuf) -> bool {
 
     let chain = Chain::new_with_consensus(
         &key.public_key(),
-        ConsensusRules::new(Target::from_leading_zeros(15), 10000, Halving::None),
+        ConsensusRules::new(Target::from_leading_zeros(15), 10000, Halving::Inf),
     );
     match SerializableChain::new(chain).to_file(path) {
         Ok(_) => println!("Chain saved to file: {}", path.display()),
@@ -175,11 +175,14 @@ fn command_start(path: &PathBuf, recipient: &PathBuf) -> bool {
         let mine = || {
             let mut chain = chain_miner_ref.lock().unwrap();
             match miner_miner_ref.lock().unwrap().mine(&chain) {
-                Ok(block) => match chain.add_block(block) {
-                    Ok(height) => {
-                        println!("Mining successful, inserted block with height: {}", height)
+                Ok(block) => {
+                    println!("Trying to add block: {:#?}", block);
+                    match chain.add_block(block) {
+                        Ok(height) => {
+                            println!("Mining successful, inserted block with height: {}", height)
+                        }
+                        Err(_) => println!("Mining failed, block is not valid."),
                     }
-                    Err(_) => println!("Mining failed, block is not valid."),
                 },
                 Err(err) => {
                     println!("Mining aborted: {:?}", err);
