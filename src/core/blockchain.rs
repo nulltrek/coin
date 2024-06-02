@@ -2,8 +2,11 @@ use crate::core::block::Block;
 use crate::core::hash::Hash;
 use crate::core::transaction::{Output, Transaction, Value};
 use crate::traits::io::{ByteIO, FileIO};
+use core::cmp::Ordering;
+use core::fmt;
 use serde::{Deserialize, Serialize};
-use std::ops::Add;
+use std::convert::From;
+use std::ops::{Add, Sub};
 use std::slice::Iter;
 
 #[derive(Debug)]
@@ -50,6 +53,73 @@ impl Add for TransactionValue {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Height(u64);
+
+impl From<Height> for u64 {
+    fn from(value: Height) -> Self {
+        value.0
+    }
+}
+
+impl From<Height> for usize {
+    fn from(value: Height) -> Self {
+        value.0 as usize
+    }
+}
+
+impl From<usize> for Height {
+    fn from(value: usize) -> Self {
+        Height(value as u64)
+    }
+}
+
+impl From<u64> for Height {
+    fn from(value: u64) -> Self {
+        Height(value)
+    }
+}
+
+impl From<u32> for Height {
+    fn from(value: u32) -> Self {
+        Height(value.into())
+    }
+}
+
+impl From<i32> for Height {
+    fn from(value: i32) -> Self {
+        Height(value as u64)
+    }
+}
+
+impl Sub<u32> for Height {
+    type Output = u64;
+
+    fn sub(self, rhs: u32) -> Self::Output {
+        self.0 - (rhs as u64)
+    }
+}
+
+impl PartialEq<usize> for Height {
+    #[inline]
+    fn eq(&self, other: &usize) -> bool {
+        self.0 == (*other as u64)
+    }
+}
+
+impl PartialOrd<usize> for Height {
+    #[inline]
+    fn partial_cmp(&self, other: &usize) -> Option<Ordering> {
+        self.0.partial_cmp(&(*other as u64))
+    }
+}
+
+impl fmt::Display for Height {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Blockchain {
     pub list: Vec<Block>,
@@ -62,27 +132,27 @@ impl Blockchain {
         }
     }
 
-    pub fn height(&self) -> usize {
-        return self.list.len();
+    pub fn height(&self) -> Height {
+        return Height::from(self.list.len());
     }
 
     pub fn iter(&self) -> Iter<'_, Block> {
         self.list.iter()
     }
 
-    pub fn append(&mut self, block: Block) -> Result<usize, BlockchainError> {
+    pub fn append(&mut self, block: Block) -> Result<Height, BlockchainError> {
         if block.data.prev_hash == self.list[self.list.len() - 1].hash {
             self.list.push(block);
-            return Ok(self.list.len() - 1);
+            return Ok(Height::from(self.list.len() - 1));
         }
         Err(BlockchainError::InvalidPrevHash)
     }
 
-    pub fn get_block(&self, height: usize) -> Option<&Block> {
-        if self.list.len() <= height {
+    pub fn get_block(&self, height: Height) -> Option<&Block> {
+        if height > self.list.len() {
             return None;
         }
-        Some(&self.list[height])
+        Some(&self.list[Into::<usize>::into(height)])
     }
 
     pub fn get_last_block(&self) -> &Block {
@@ -218,7 +288,7 @@ mod tests {
         let mut block_gen = BlockGen::default();
 
         let mut chain = Blockchain::new(block_gen.next().unwrap());
-        let mut hashes = Vec::<(Hash, usize)>::new();
+        let mut hashes = Vec::<(Hash, Height)>::new();
         for _ in 0..9 {
             let block = block_gen.next().unwrap();
             let block_hash = block.hash.clone();
@@ -228,7 +298,7 @@ mod tests {
 
         for (hash, index) in hashes {
             let (height, _) = chain.query_block(&hash).unwrap();
-            assert_eq!(height, index);
+            assert_eq!(index, height);
         }
 
         let result = chain.query_block(&Hash::new(b"nothing"));
@@ -244,7 +314,7 @@ mod tests {
         let mut block_gen = BlockGen::default();
 
         let mut chain = Blockchain::new(block_gen.next().unwrap());
-        let mut hashes = Vec::<(Hash, usize)>::new();
+        let mut hashes = Vec::<(Hash, Height)>::new();
         for _ in 0..9 {
             let block = block_gen.next().unwrap();
 
@@ -256,7 +326,7 @@ mod tests {
 
         for (hash, index) in hashes {
             let (height, _) = chain.query_tx(&hash).unwrap();
-            assert_eq!(height, index);
+            assert_eq!(index, height);
         }
 
         let result = chain.query_tx(&Hash::new(b"nothing"));

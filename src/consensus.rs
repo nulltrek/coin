@@ -1,3 +1,4 @@
+use crate::core::blockchain::Height;
 use crate::core::hash::Hash;
 use crate::core::transaction::Value;
 use crate::traits::io::{ByteIO, FileIO};
@@ -130,11 +131,11 @@ impl ConsensusRules {
         Target::from_hash(hash) <= self.target
     }
 
-    pub fn reward(&self, height: u64) -> Value {
+    pub fn reward(&self, height: Height) -> Value {
         match self.halving {
             Halving::None => self.base_coins,
             Halving::Height(0) => panic!("Invalid halving value"),
-            Halving::Height(value) => self.base_coins / ((height / value) + 1),
+            Halving::Height(value) => self.base_coins / ((Into::<u64>::into(height) / value) + 1),
             Halving::Inf => {
                 if height == 0 {
                     self.base_coins
@@ -190,34 +191,34 @@ mod tests {
     fn halving() {
         let cr = ConsensusRules::new(Target::MAX, 10000, Halving::None);
 
-        assert_eq!(cr.reward(0), cr.base_coins);
-        assert_eq!(cr.reward(1), cr.base_coins);
-        assert_eq!(cr.reward(11), cr.base_coins);
-        assert_eq!(cr.reward(101), cr.base_coins);
-        assert_eq!(cr.reward(10000000), cr.base_coins);
+        assert_eq!(cr.reward(Height::from(0)), cr.base_coins);
+        assert_eq!(cr.reward(Height::from(1)), cr.base_coins);
+        assert_eq!(cr.reward(Height::from(11)), cr.base_coins);
+        assert_eq!(cr.reward(Height::from(101)), cr.base_coins);
+        assert_eq!(cr.reward(Height::from(10000000)), cr.base_coins);
 
         let cr = ConsensusRules::new(Target::MAX, 10000, Halving::Inf);
 
-        assert_eq!(cr.reward(0), cr.base_coins);
-        assert_eq!(cr.reward(1), 0);
-        assert_eq!(cr.reward(11), 0);
-        assert_eq!(cr.reward(101), 0);
-        assert_eq!(cr.reward(10000000), 0);
+        assert_eq!(cr.reward(Height::from(0)), cr.base_coins);
+        assert_eq!(cr.reward(Height::from(1)), 0);
+        assert_eq!(cr.reward(Height::from(11)), 0);
+        assert_eq!(cr.reward(Height::from(101)), 0);
+        assert_eq!(cr.reward(Height::from(10000000)), 0);
 
         let cr = ConsensusRules::new(Target::MAX, 10000, Halving::Height(10));
 
-        assert_eq!(cr.reward(0), cr.base_coins);
-        assert_eq!(cr.reward(1), cr.base_coins);
-        assert_eq!(cr.reward(11), cr.base_coins / 2);
-        assert_eq!(cr.reward(101), cr.base_coins / 11);
-        assert_eq!(cr.reward(10000000), 0);
+        assert_eq!(cr.reward(Height::from(0)), cr.base_coins);
+        assert_eq!(cr.reward(Height::from(1)), cr.base_coins);
+        assert_eq!(cr.reward(Height::from(11)), cr.base_coins / 2);
+        assert_eq!(cr.reward(Height::from(101)), cr.base_coins / 11);
+        assert_eq!(cr.reward(Height::from(10000000)), 0);
 
         let cr = ConsensusRules::new(Target::MAX, 500, Halving::Height(200000));
 
-        assert_eq!(cr.reward(0), cr.base_coins);
-        assert_eq!(cr.reward(200000), cr.base_coins / 2);
-        assert_eq!(cr.reward(400000), cr.base_coins / 3);
-        assert_eq!(cr.reward(100000000), 0);
+        assert_eq!(cr.reward(Height::from(0)), cr.base_coins);
+        assert_eq!(cr.reward(Height::from(200000)), cr.base_coins / 2);
+        assert_eq!(cr.reward(Height::from(400000)), cr.base_coins / 3);
+        assert_eq!(cr.reward(Height::from(100000000)), 0);
     }
 
     #[test]

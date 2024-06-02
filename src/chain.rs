@@ -1,6 +1,6 @@
 use crate::consensus::ConsensusRules;
 use crate::core::block::Block;
-use crate::core::blockchain::{Blockchain, BlockchainError};
+use crate::core::blockchain::{Blockchain, BlockchainError, Height};
 use crate::core::hash::Hash;
 use crate::core::keys::PublicKey;
 use crate::core::transaction::{Output, Transaction};
@@ -117,7 +117,7 @@ impl Chain {
         self.chain.get_last_block()
     }
 
-    pub fn height(&self) -> usize {
+    pub fn height(&self) -> Height {
         self.chain.height()
     }
 
@@ -178,9 +178,9 @@ impl Chain {
      * - There are no inputs
      * - There is at least 1 output
      * - The coinbase transaction timestamp must be equal to the last block's height
-     * - The total output value is less than or equal to the coins per block consensus rule + fees on the block
+     * - The total output value is less than or equal to the consensus reward + fees on the block
      */
-    fn validate_coinbase_tx(&self, block: &Block, tx: &Transaction) -> bool {
+    fn validate_coinbase_tx(&self, height: Height, block: &Block, tx: &Transaction) -> bool {
         let block_value = self.chain.get_block_value(block);
         if block_value.is_none() {
             return false;
@@ -196,7 +196,7 @@ impl Chain {
             && match self.chain.get_tx_value(tx) {
                 Some(value) => {
                     value.input == 0
-                        && value.output <= (self.rules.base_coins + block_value.unwrap().fees)
+                        && value.output <= (self.rules.reward(height) + block_value.unwrap().fees)
                 }
                 None => false,
             };
@@ -231,7 +231,12 @@ impl Chain {
      * - All the transactions except the last one are valid regular transactions
      * - The last transaction is a valid coinbase transaction or a valid regular transaction
      */
-    fn validate_block_with_previous(&self, block: &Block, previous: &Block) -> bool {
+    fn validate_block_with_previous(
+        &self,
+        height: Height,
+        block: &Block,
+        previous: &Block,
+    ) -> bool {
         return block.is_hash_valid()
             && block.data.prev_hash == previous.hash
             && block.data.transactions.len() > 0
@@ -243,13 +248,13 @@ impl Chain {
             && block.data.transactions[..block.data.transactions.len() - 1]
                 .iter()
                 .fold(true, |acc, tx| acc && self.validate_tx(tx))
-            && (self.validate_coinbase_tx(block, block.data.transactions.last().unwrap())
+            && (self.validate_coinbase_tx(height, block, block.data.transactions.last().unwrap())
                 || self.validate_tx(block.data.transactions.last().unwrap()))
             && self.validate_double_spend(&block.data.transactions);
     }
 
     pub fn validate_block(&self, block: &Block) -> bool {
-        self.validate_block_with_previous(block, self.chain.get_last_block())
+        self.validate_block_with_previous(self.height(), block, self.chain.get_last_block())
     }
 
     /*
@@ -263,7 +268,11 @@ impl Chain {
                 .iter()
                 .enumerate()
                 .fold(true, |acc, (i, block)| {
-                    acc && self.validate_block_with_previous(block, &self.chain.list[i])
+                    acc && self.validate_block_with_previous(
+                        Height::from(i),
+                        block,
+                        &self.chain.list[i],
+                    )
                 });
     }
 
@@ -272,7 +281,7 @@ impl Chain {
      * - Its hash satisfies the consensus target
      * - It's a valid block
      */
-    pub fn add_block(&mut self, block: Block) -> Result<usize, ChainOpError> {
+    pub fn add_block(&mut self, block: Block) -> Result<Height, ChainOpError> {
         if !self.rules.validate_target(&block.hash) {
             return Err(ChainOpError::TargetNotSatisfied);
         }
@@ -470,16 +479,16 @@ mod tests {
 
         let genesis = &chain.chain.list[0];
         let coinbase = &genesis.data.transactions[0];
-        assert!(chain.validate_coinbase_tx(genesis, &coinbase));
+        assert!(chain.validate_coinbase_tx(Height::from(0), genesis, &coinbase));
 
         let tx = Transaction {
             hash: Hash::new(b"test"),
             data: coinbase.data.clone(),
         };
-        assert!(!chain.validate_coinbase_tx(genesis, &tx));
+        assert!(!chain.validate_coinbase_tx(Height::from(0), genesis, &tx));
 
         let tx = Transaction::new(TransactionData::new(vec![], vec![]));
-        assert!(!chain.validate_coinbase_tx(genesis, &tx));
+        assert!(!chain.validate_coinbase_tx(Height::from(0), genesis, &tx));
 
         let tx = Transaction::new(TransactionData::new_with_timestamp(
             vec![],
@@ -489,7 +498,7 @@ mod tests {
             }],
             0,
         ));
-        assert!(chain.validate_coinbase_tx(genesis, &tx));
+        assert!(chain.validate_coinbase_tx(Height::from(0), genesis, &tx));
 
         let tx = Transaction::new(TransactionData::new(
             vec![],
@@ -514,7 +523,7 @@ mod tests {
             ))],
         ));
 
-        assert!(chain.validate_coinbase_tx(&block, &tx));
+        assert!(chain.validate_coinbase_tx(Height::from(1), &block, &tx));
 
         let tx = Transaction::new(TransactionData::new(
             vec![],
@@ -524,7 +533,7 @@ mod tests {
             }],
         ));
 
-        assert!(chain.validate_coinbase_tx(&block, &tx));
+        assert!(chain.validate_coinbase_tx(Height::from(1), &block, &tx));
 
         let tx = Transaction::new(TransactionData::new(
             vec![],
@@ -534,7 +543,7 @@ mod tests {
             }],
         ));
 
-        assert!(!chain.validate_coinbase_tx(&block, &tx));
+        assert!(!chain.validate_coinbase_tx(Height::from(1), &block, &tx));
     }
 
     #[test]

@@ -73,7 +73,7 @@ impl Miner {
                 value: chain.rules.base_coins + tx_value.fees,
                 pubkey: self.recipient.clone(),
             }],
-            (chain.height() - 1) as u64,
+            chain.height() - 1,
         )));
 
         println!("Target: {:0256b}", chain.rules.target);
