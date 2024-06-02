@@ -757,6 +757,142 @@ mod tests {
     }
 
     #[test]
+    fn halving_inf() {
+        let key_1 = KeyPair::new();
+        let key_2 = KeyPair::new();
+
+        let mut chain = Chain::new_with_consensus(
+            &key_1.public_key(),
+            ConsensusRules::new(Target::MAX, 10000, Halving::Inf),
+        );
+        let last_block = chain.chain.get_last_block();
+        let last_coinbase = &last_block.data.transactions[0];
+        let last_block_hash = last_block.hash.clone();
+
+        let valid_tx = Transaction::new(TransactionData::new(
+            vec![Input {
+                hash: last_coinbase.hash.clone(),
+                index: 0,
+                signature: key_1.sign(last_coinbase.hash.digest()),
+            }],
+            vec![Output {
+                value: 5000,
+                pubkey: key_2.public_key(),
+            }],
+        ));
+        let invalid_coinbase_tx = Transaction::new(TransactionData::new(
+            vec![],
+            vec![Output {
+                value: 5001,
+                pubkey: key_1.public_key(),
+            }],
+        ));
+
+        let result = chain.add_block(Block::new(BlockData::new(
+            last_block_hash.clone(),
+            0,
+            vec![valid_tx.clone(), invalid_coinbase_tx],
+        )));
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), ChainOpError::InvalidBlock);
+
+        let valid_coinbase_tx = Transaction::new(TransactionData::new(
+            vec![],
+            vec![Output {
+                value: 5000,
+                pubkey: key_1.public_key(),
+            }],
+        ));
+
+        let result = chain.add_block(Block::new(BlockData::new(
+            last_block_hash,
+            0,
+            vec![valid_tx, valid_coinbase_tx],
+        )));
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 1);
+
+        let utxos_1 = chain.find_utxos_for_key(&key_1.public_key());
+        assert_eq!(
+            utxos_1.iter().fold(0, |acc, u| acc + u.value),
+            chain.rules.base_coins - 5000
+        );
+
+        let utxos_2 = chain.find_utxos_for_key(&key_2.public_key());
+        assert_eq!(utxos_2.iter().fold(0, |acc, u| acc + u.value), 5000);
+    }
+
+    #[test]
+    fn halving_height() {
+        let key_1 = KeyPair::new();
+        let key_2 = KeyPair::new();
+
+        let mut chain = Chain::new_with_consensus(
+            &key_1.public_key(),
+            ConsensusRules::new(Target::MAX, 10000, Halving::Height(1)),
+        );
+        let last_block = chain.chain.get_last_block();
+        let last_coinbase = &last_block.data.transactions[0];
+        let last_block_hash = last_block.hash.clone();
+
+        let valid_tx = Transaction::new(TransactionData::new(
+            vec![Input {
+                hash: last_coinbase.hash.clone(),
+                index: 0,
+                signature: key_1.sign(last_coinbase.hash.digest()),
+            }],
+            vec![Output {
+                value: 5000,
+                pubkey: key_2.public_key(),
+            }],
+        ));
+        let invalid_coinbase_tx = Transaction::new(TransactionData::new(
+            vec![],
+            vec![Output {
+                value: 10001,
+                pubkey: key_1.public_key(),
+            }],
+        ));
+
+        let result = chain.add_block(Block::new(BlockData::new(
+            last_block_hash.clone(),
+            0,
+            vec![valid_tx.clone(), invalid_coinbase_tx.clone()],
+        )));
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), ChainOpError::InvalidBlock);
+
+        let valid_coinbase_tx = Transaction::new(TransactionData::new(
+            vec![],
+            vec![Output {
+                value: 10000,
+                pubkey: key_1.public_key(),
+            }],
+        ));
+
+        let result = chain.add_block(Block::new(BlockData::new(
+            last_block_hash,
+            0,
+            vec![valid_tx, valid_coinbase_tx],
+        )));
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 1);
+
+        let utxos_1 = chain.find_utxos_for_key(&key_1.public_key());
+        assert_eq!(
+            utxos_1.iter().fold(0, |acc, u| acc + u.value),
+            chain.rules.base_coins + (chain.rules.base_coins / 2) - 5000
+        );
+
+        let utxos_2 = chain.find_utxos_for_key(&key_2.public_key());
+        assert_eq!(utxos_2.iter().fold(0, |acc, u| acc + u.value), 5000);
+    }
+
+    #[test]
     fn chain_test() {
         use rand::seq::SliceRandom;
         use rand::thread_rng;
