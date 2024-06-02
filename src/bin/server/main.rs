@@ -148,19 +148,21 @@ fn command_start(path: &PathBuf, recipient: &PathBuf, mining_freq: u64) -> bool 
     println!("Starting server with chain {}", path.display());
 
     // SETUP BLOCKCHAIN
-    let chain = match SerializableChain::from_file(path) {
-        Ok(chain) => Chain::from_serializable(chain),
+    let ser_chain = match SerializableChain::from_file(path) {
+        Ok(chain) => chain,
         Err(_) => {
             println!("Cannot deserialize blockchain!");
             return false;
         }
     };
 
-    let chain = Arc::new(Mutex::new(chain));
-    if !chain.lock().unwrap().validate_chain() {
-        println!("Blockchain validation failed!");
-        return false;
-    }
+    let chain = match Chain::from_serializable(ser_chain) {
+        Ok(chain) => Arc::new(Mutex::new(chain)),
+        Err(_) => {
+            println!("Blockchain validation failed!");
+            return false;
+        }
+    };
 
     // SETUP RECIPIENT KEY
     let key = match KeyPair::from_file(recipient) {

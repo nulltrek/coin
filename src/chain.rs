@@ -16,6 +16,14 @@ pub struct UtxoPool {
     pub utxos: HashMap<(Hash, u32), Output>,
 }
 
+impl Default for UtxoPool {
+    fn default() -> UtxoPool {
+        UtxoPool {
+            utxos: HashMap::new(),
+        }
+    }
+}
+
 impl UtxoPool {
     pub fn new(chain: &Blockchain) -> UtxoPool {
         let mut pool = UtxoPool {
@@ -72,6 +80,7 @@ impl UtxoPool {
 
 #[derive(PartialEq, Debug)]
 pub enum ChainOpError {
+    InvalidChain,
     TargetNotSatisfied,
     InvalidBlock,
     InvalidPrevHash,
@@ -105,8 +114,12 @@ impl Chain {
         Self::init(rules, Blockchain::new(genesis))
     }
 
-    pub fn from_serializable(chain: SerializableChain) -> Chain {
-        Self::init(chain.rules, chain.chain)
+    pub fn from_serializable(chain: SerializableChain) -> Result<Chain, ChainOpError> {
+        let chain = Self::init(chain.rules, chain.chain);
+        if !chain.validate_chain() {
+            return Err(ChainOpError::InvalidChain);
+        }
+        Ok(chain)
     }
 
     pub fn get_block(&self, height: usize) -> Option<&Block> {
@@ -161,17 +174,21 @@ impl Chain {
      * - The total input value is greater than or equal to the total ouput value
      * - It doesn't have a timestamp
      */
-    pub fn validate_tx(&self, tx: &Transaction) -> bool {
+    fn validate_tx(&self, tx: &Transaction, utxos: &UtxoPool) -> bool {
         return tx.is_hash_valid()
             && tx.data.inputs.len() > 0
             && tx.data.outputs.len() > 0
             && verify_tx_signatures(&self.chain, tx)
-            && self.utxos.is_unspent(tx)
+            && utxos.is_unspent(tx)
             && match self.chain.get_tx_value(tx) {
                 Some(value) => value.output > 0 && value.input >= value.output,
                 None => false,
             }
             && tx.data.timestamp.is_none();
+    }
+
+    pub fn validate_new_tx(&self, tx: &Transaction) -> bool {
+        self.validate_tx(tx, &self.utxos)
     }
 
     /*
@@ -246,7 +263,7 @@ impl Chain {
      * - All the transactions except the last one are valid regular transactions
      * - The last transaction is a valid coinbase transaction or a valid regular transaction
      */
-    fn validate_block_with_previous(&self, block: &Block, previous: &Block) -> bool {
+    fn validate_block(&self, block: &Block, previous: &Block, utxos: &UtxoPool) -> bool {
         return block.is_hash_valid()
             && block.data.prev_hash == previous.hash
             && block.data.transactions.len() > 0
@@ -257,17 +274,17 @@ impl Chain {
             && block.is_top_hash_valid()
             && block.data.transactions[..block.data.transactions.len() - 1]
                 .iter()
-                .fold(true, |acc, tx| acc && self.validate_tx(tx))
+                .fold(true, |acc, tx| acc && self.validate_tx(tx, utxos))
             && (self.validate_coinbase_tx(
                 block.prev_hash(),
                 block.transactions(),
                 block.transactions().last().unwrap(),
-            ) || self.validate_tx(block.data.transactions.last().unwrap()))
+            ) || self.validate_tx(block.transactions().last().unwrap(), utxos))
             && self.validate_double_spend(&block.data.transactions);
     }
 
-    pub fn validate_block(&self, block: &Block) -> bool {
-        self.validate_block_with_previous(block, self.chain.get_last_block())
+    pub fn validate_new_block(&self, block: &Block) -> bool {
+        self.validate_block(block, self.chain.get_last_block(), &self.utxos)
     }
 
     /*
@@ -276,12 +293,16 @@ impl Chain {
      * - All the remaining blocks are valid
      */
     pub fn validate_chain(&self) -> bool {
+        let mut utxos = UtxoPool::default();
+        utxos.update(&self.chain.list[0]);
         return self.validate_genesis()
             && self.chain.list[1..]
                 .iter()
                 .enumerate()
                 .fold(true, |acc, (i, block)| {
-                    acc && self.validate_block_with_previous(block, &self.chain.list[i])
+                    let result = acc && self.validate_block(block, &self.chain.list[i], &utxos);
+                    utxos.update(block);
+                    result
                 });
     }
 
@@ -294,7 +315,7 @@ impl Chain {
         if !self.rules.validate_target(&block.hash) {
             return Err(ChainOpError::TargetNotSatisfied);
         }
-        if !self.validate_block(&block) {
+        if !self.validate_new_block(&block) {
             return Err(ChainOpError::InvalidBlock);
         }
 
@@ -403,7 +424,7 @@ mod tests {
     }
 
     #[test]
-    fn validate_tx() {
+    fn validate_new_tx() {
         let key_1 = KeyPair::new();
         let key_2 = KeyPair::new();
         let chain = Chain::new(&key_1.public_key());
@@ -420,7 +441,7 @@ mod tests {
                 pubkey: key_2.public_key(),
             }],
         ));
-        assert!(chain.validate_tx(&tx));
+        assert!(chain.validate_new_tx(&tx));
 
         let tx = Transaction::new(TransactionData::new(
             vec![],
@@ -429,7 +450,7 @@ mod tests {
                 pubkey: key_2.public_key(),
             }],
         ));
-        assert!(!chain.validate_tx(&tx));
+        assert!(!chain.validate_new_tx(&tx));
 
         let tx = Transaction::new(TransactionData::new(
             vec![Input {
@@ -439,7 +460,7 @@ mod tests {
             }],
             vec![],
         ));
-        assert!(!chain.validate_tx(&tx));
+        assert!(!chain.validate_new_tx(&tx));
 
         let tx = Transaction::new(TransactionData::new(
             vec![Input {
@@ -452,7 +473,7 @@ mod tests {
                 pubkey: key_2.public_key(),
             }],
         ));
-        assert!(!chain.validate_tx(&tx));
+        assert!(!chain.validate_new_tx(&tx));
 
         let tx = Transaction::new(TransactionData::new(
             vec![Input {
@@ -465,7 +486,7 @@ mod tests {
                 pubkey: key_2.public_key(),
             }],
         ));
-        assert!(!chain.validate_tx(&tx));
+        assert!(!chain.validate_new_tx(&tx));
 
         let tx = Transaction::new(TransactionData::new(
             vec![Input {
@@ -478,7 +499,7 @@ mod tests {
                 pubkey: key_2.public_key(),
             }],
         ));
-        assert!(!chain.validate_tx(&tx));
+        assert!(!chain.validate_new_tx(&tx));
     }
 
     #[test]
@@ -598,7 +619,7 @@ mod tests {
     }
 
     #[test]
-    fn validate_block() {
+    fn validate_new_block() {
         let key_1 = KeyPair::new();
         let key_2 = KeyPair::new();
 
@@ -631,20 +652,20 @@ mod tests {
             data: BlockData::new(last_block.hash.clone(), 0, vec![valid_tx.clone()]),
         };
 
-        assert!(!chain.validate_block(&block));
+        assert!(!chain.validate_new_block(&block));
 
         let block = Block {
             hash: Hash::new(b"test"),
             data: BlockData::new(last_block.hash.clone(), 0, vec![valid_tx.clone()]),
         };
-        assert!(!chain.validate_block(&block));
+        assert!(!chain.validate_new_block(&block));
 
         let block = Block::new(BlockData::new(
             Hash::new(b"test"),
             0,
             vec![valid_tx.clone()],
         ));
-        assert!(!chain.validate_block(&block));
+        assert!(!chain.validate_new_block(&block));
 
         let block = Block::new(BlockData::new(
             last_block.hash.clone(),
@@ -657,28 +678,28 @@ mod tests {
                 }],
             ))],
         ));
-        assert!(!chain.validate_block(&block));
+        assert!(!chain.validate_new_block(&block));
 
         let block = Block::new(BlockData::new(
             last_block.hash.clone(),
             0,
             vec![valid_tx.clone()],
         ));
-        assert!(chain.validate_block(&block));
+        assert!(chain.validate_new_block(&block));
 
         let block = Block::new(BlockData::new(
             last_block.hash.clone(),
             0,
             vec![valid_tx.clone(), valid_coinbase_tx.clone()],
         ));
-        assert!(chain.validate_block(&block));
+        assert!(chain.validate_new_block(&block));
 
         let block = Block::new(BlockData::new(
             last_block.hash.clone(),
             0,
             vec![valid_tx.clone(), valid_tx.clone()],
         ));
-        assert!(!chain.validate_block(&block));
+        assert!(!chain.validate_new_block(&block));
     }
 
     #[test]

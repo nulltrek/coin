@@ -114,7 +114,7 @@ impl Miner {
     }
 
     pub fn add_tx(&mut self, chain: &Chain, tx: Transaction) -> bool {
-        if chain.validate_tx(&tx) {
+        if chain.validate_new_tx(&tx) {
             self.pool.insert(tx.hash.clone(), tx);
             return true;
         }
@@ -186,7 +186,7 @@ mod tests {
         assert!(block.is_ok());
 
         let block = block.unwrap();
-        assert!(chain.validate_block(&block));
+        assert!(chain.validate_new_block(&block));
 
         let result = chain.add_block(block);
 
