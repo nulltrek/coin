@@ -452,7 +452,7 @@ mod tests {
                         },
                     ],
                 )),
-                new_coinbase_tx(&key.public_key(), coinbase_value),
+                new_coinbase_tx(&key.public_key(), coinbase_value, 1),
             ],
         ));
 
