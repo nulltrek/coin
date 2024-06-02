@@ -15,7 +15,7 @@ pub struct Target {
 }
 
 impl Target {
-    const MAX: Target = Target { value: U256::MAX };
+    pub const MAX: Target = Target { value: U256::MAX };
 
     pub fn from_hash(hash: &Hash) -> Target {
         Target {
