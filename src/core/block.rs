@@ -49,6 +49,14 @@ impl Block {
         }
     }
 
+    pub fn prev_hash(&self) -> &Hash {
+        &self.data.prev_hash
+    }
+
+    pub fn transactions(&self) -> &[Transaction] {
+        self.data.transactions.as_slice()
+    }
+
     pub fn is_hash_valid(&self) -> bool {
         let bytes: Vec<u8> = self.data.into_bytes();
         return Hash::new(bytes.as_slice()).digest() == self.hash.digest();
