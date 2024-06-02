@@ -67,14 +67,17 @@ impl Miner {
             tx_value = tx_value + chain.chain.get_tx_value(tx).unwrap();
         }
 
-        txs.push(Transaction::new(TransactionData::new_with_timestamp(
-            vec![],
-            vec![Output {
-                value: chain.rules.reward(chain.height()) + tx_value.fees,
-                pubkey: self.recipient.clone(),
-            }],
-            chain.height() - 1,
-        )));
+        let coinbase_value = chain.rules.reward(chain.height()) + tx_value.fees;
+        if coinbase_value > 0 {
+            txs.push(Transaction::new(TransactionData::new_with_timestamp(
+                vec![],
+                vec![Output {
+                    value: coinbase_value,
+                    pubkey: self.recipient.clone(),
+                }],
+                chain.height() - 1,
+            )));
+        }
 
         println!("Target: {:0256b}", chain.rules.target);
         println!("Target leading: {}", chain.rules.target.leading_zeros());
