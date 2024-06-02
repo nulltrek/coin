@@ -183,7 +183,7 @@ fn command_start(path: &PathBuf, recipient: &PathBuf) -> bool {
                         }
                         Err(_) => println!("Mining failed, block is not valid."),
                     }
-                },
+                }
                 Err(err) => {
                     println!("Mining aborted: {:?}", err);
                 }

@@ -140,11 +140,7 @@ fn main() -> ExitCode {
 
             send_tx(node, key, &outputs)
         }
-        Commands::BuildTx {
-            tx,
-            addr,
-            value,
-        } => {
+        Commands::BuildTx { tx, addr, value } => {
             println!("Build transaction into file {}", tx.display());
             println!("  Send {} coins to {}", value, addr);
 

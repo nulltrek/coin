@@ -209,6 +209,7 @@ impl Chain {
                         Some(value) => value + 1,
                     };
                     value.input == 0
+                        && value.output > 0
                         && value.output
                             <= (self.rules.reward(Height::from(height)) + txs_value.unwrap().fees)
                 }
@@ -496,6 +497,15 @@ mod tests {
         assert!(!chain.validate_coinbase_tx(genesis.prev_hash(), genesis.transactions(), &tx));
 
         let tx = Transaction::new(TransactionData::new(vec![], vec![]));
+        assert!(!chain.validate_coinbase_tx(genesis.prev_hash(), genesis.transactions(), &tx));
+
+        let tx = Transaction::new(TransactionData::new(
+            vec![],
+            vec![Output {
+                value: 0,
+                pubkey: key.public_key(),
+            }],
+        ));
         assert!(!chain.validate_coinbase_tx(genesis.prev_hash(), genesis.transactions(), &tx));
 
         let tx = Transaction::new(TransactionData::new(
