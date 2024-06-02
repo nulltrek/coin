@@ -212,14 +212,9 @@ impl Blockchain {
         Some(TransactionValue::new(input, output, fees))
     }
 
-    pub fn get_block_value(&self, block: &Block) -> Option<TransactionValue> {
+    pub fn get_tx_collection_value(&self, txs: &[Transaction]) -> Option<TransactionValue> {
         let mut acc = TransactionValue::default();
-        for tx in block
-            .data
-            .transactions
-            .iter()
-            .filter(|tx| !tx.is_coinbase())
-        {
+        for tx in txs.iter().filter(|tx| !tx.is_coinbase()) {
             let result = self.get_tx_value(tx);
             if result.is_none() {
                 return None;
@@ -456,7 +451,9 @@ mod tests {
             ],
         ));
 
-        let value = chain.get_block_value(&next).unwrap();
+        let value = chain
+            .get_tx_collection_value(&next.data.transactions)
+            .unwrap();
 
         assert_eq!(value.input, coinbase_value);
         assert_eq!(value.output, 9000);
