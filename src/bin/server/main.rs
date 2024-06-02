@@ -38,6 +38,8 @@ enum Commands {
         path: PathBuf,
         #[arg(short, long)]
         recipient: PathBuf,
+        #[arg(short, long, required = false, default_value = "60")]
+        mining_freq: u64,
     },
 }
 
@@ -46,7 +48,11 @@ fn main() -> ExitCode {
 
     let success = match &cli.command {
         Commands::New { path, key } => command_new(path, key),
-        Commands::Start { path, recipient } => command_start(path, recipient),
+        Commands::Start {
+            path,
+            recipient,
+            mining_freq,
+        } => command_start(path, recipient, *mining_freq),
     };
 
     ExitCode::from(if success { 0 } else { 1 })
@@ -138,7 +144,7 @@ enum MinerCommand {
     Mine,
 }
 
-fn command_start(path: &PathBuf, recipient: &PathBuf) -> bool {
+fn command_start(path: &PathBuf, recipient: &PathBuf, mining_freq: u64) -> bool {
     println!("Starting server with chain {}", path.display());
 
     // SETUP BLOCKCHAIN
@@ -191,7 +197,7 @@ fn command_start(path: &PathBuf, recipient: &PathBuf) -> bool {
         };
 
         loop {
-            match miner_receiver.recv_timeout(Duration::from_secs(60)) {
+            match miner_receiver.recv_timeout(Duration::from_secs(mining_freq)) {
                 Ok(command) => match command {
                     MinerCommand::Stop => return,
                     MinerCommand::Mine => {
