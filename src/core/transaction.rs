@@ -78,6 +78,9 @@ impl ByteIO for Transaction {}
 impl FileIO for Transaction {}
 impl JsonIO for Transaction {}
 
+impl ByteIO for Vec<Output> {}
+impl FileIO for Vec<Output> {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
