@@ -257,11 +257,12 @@ impl Chain {
     }
 
     /*
-     * The order of transactions in a block matters. There cannot be two or more
+     * The order of transactions in a block matters. The same utxo cannot be
+     * spent twice in the same transaction and there cannot be two or more
      * transactions in a block which spend the same utxo. This function checks
      * for double spends in a list of transactions.
      */
-    pub fn validate_double_spend(&self, transactions: &[Transaction]) -> bool {
+    fn validate_double_spend(&self, transactions: &[Transaction]) -> bool {
         let mut inputs = HashSet::<(Hash, u32)>::new();
         for tx in transactions {
             for input in &tx.data.inputs {
@@ -642,6 +643,46 @@ mod tests {
         ));
 
         assert!(!chain.validate_coinbase_tx(block.prev_hash(), block.transactions(), &tx));
+    }
+
+    #[test]
+    fn validate_tx_double_spend() {
+        let key_1 = KeyPair::new();
+        let key_2 = KeyPair::new();
+
+        let mut chain = Chain::new(&key_1.public_key());
+        let last_block = chain.chain.get_last_block();
+        let last_coinbase = &last_block.data.transactions[0];
+
+        let invalid_tx = Transaction::new(TransactionData::new(
+            vec![
+                Input {
+                    hash: last_coinbase.hash.clone(),
+                    index: 0,
+                    signature: key_1.sign(last_coinbase.hash.digest()),
+                },
+                Input {
+                    hash: last_coinbase.hash.clone(),
+                    index: 0,
+                    signature: key_1.sign(last_coinbase.hash.digest()),
+                },
+            ],
+            vec![Output {
+                value: 20000,
+                pubkey: key_2.public_key(),
+            }],
+        ));
+
+        let result = chain.add_block(Block::new(BlockData::new(
+            last_block.hash.clone(),
+            0,
+            vec![invalid_tx],
+        )));
+
+        println!("{:#?}", chain);
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), ChainOpError::InvalidBlock);
     }
 
     #[test]
