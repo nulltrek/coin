@@ -1,3 +1,9 @@
+//! Cryptographic hashing of data
+//!
+//! Hashing is used everywhere in the blockchain infrastructure to prevent
+//! tampering of the data.
+//!
+
 use crate::traits::io::{ByteIO, JsonIO};
 use ethnum::U256;
 use serde::de;
@@ -20,6 +26,12 @@ pub struct Hash {
     value: [u8; Hash::SIZE],
 }
 
+/// The hash structure is a 32 byte array representing the SHA256 hash value
+/// of some arbitrary data.
+///
+/// It provides serialization/deserialization to and from both human readable
+/// and binary formats
+///
 impl Hash {
     const SIZE: usize = 32;
 

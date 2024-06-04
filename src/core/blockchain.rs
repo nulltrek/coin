@@ -1,3 +1,10 @@
+//! A list of chained blocks
+//!
+//! The [blockchain](Blockchain) is a list of [blocks](Block) that are linked through block hashes.
+//! This implementation doesn't validate blocks and transaction, and only ensures that the blocks are correctly chained.
+//! It provides some utility functions for querying the chain, getting transaction value, etc.
+//!
+
 use crate::core::block::Block;
 use crate::core::hash::Hash;
 use crate::core::transaction::{Output, Transaction, Value};
@@ -14,6 +21,9 @@ pub enum BlockchainError {
     InvalidPrevHash,
 }
 
+/// Utility struct for computing input, output and fee value for a transaction
+/// or group of transactions
+///
 #[derive(Debug, PartialEq, Eq)]
 pub struct TransactionValue {
     pub input: Value,
@@ -53,6 +63,8 @@ impl Add for TransactionValue {
     }
 }
 
+/// Helper struct representing the height of a block in the blockchain
+///
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Height(u64);
 
@@ -120,6 +132,13 @@ impl fmt::Display for Height {
     }
 }
 
+/// The blockchain is just (data-wise) a list of [blocks](Block). Some
+/// functions are provided for querying it, appending blocks to it, and
+/// compute the value of its transactions
+///
+/// This structure is agnostic on consensus rules and the only guarantee
+/// it provides is that every [block](Block) points to the previous one.
+///
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Blockchain {
     pub list: Vec<Block>,

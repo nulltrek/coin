@@ -1,3 +1,5 @@
+//! Utilities for unit testing
+
 use crate::core::block::{Block, BlockData};
 use crate::core::hash::Hash;
 use crate::core::keys::KeyPair;
