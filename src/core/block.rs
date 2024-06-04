@@ -1,3 +1,9 @@
+//! The basic element of the blockchain.
+//!
+//! A [block](Block) is a collection of [transactions](Transaction) pointing to a previous block.
+//! Additional data is used both for tampering prevention and for enabling Proof of Work.
+//!
+
 use crate::core::hash::Hash;
 use crate::core::transaction::Transaction;
 use crate::traits::io::{ByteIO, FileIO};
@@ -5,6 +11,12 @@ use serde::{Deserialize, Serialize};
 
 pub type Nonce = u32;
 
+/// The block data. It points to the previous block by specifying its hash,
+/// and it contains a list of transactions.
+///
+/// The nonce is used by miners for generating new hashes during PoW.
+/// The top hash is computed from the hashes of the list of transactions.
+///
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct BlockData {
     pub prev_hash: Hash,
@@ -34,6 +46,9 @@ impl BlockData {
 
 impl ByteIO for BlockData {}
 
+/// The Block struct is a wrapper for the [block data](BlockData), it
+/// computes and stores the hash of its contents.
+///
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Block {
     pub hash: Hash,

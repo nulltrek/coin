@@ -1,3 +1,10 @@
+//! Private/Public key implementation base on Elliptic Curve Cryptography
+//!
+//! Private keys are used for signing transactions, thus verifying ownership of coins.
+//! Public keys are used for verifying the validity of signatures, and they act as
+//! addresses to send coins to.
+//!
+
 use crate::traits::io::{ByteIO, DeserializeError, FileIO};
 use ed25519_dalek::{
     Signature as DalekSignature, Signer, SigningKey, Verifier as DalekVerifier, VerifyingKey,
@@ -12,11 +19,15 @@ pub trait Verifier {
     fn verify(&self, message: &[u8], signature: &Signature) -> bool;
 }
 
+/// A private key representation
 pub type PrivateKey = [u8; SECRET_KEY_LENGTH];
 
 #[derive(Debug)]
 pub struct PubkeyDeserializeError;
 
+/// A public key representation.
+///
+/// Functions are provided for verifying signatures and for serialization.
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct PublicKey {
     value: [u8; PUBLIC_KEY_LENGTH],
@@ -55,9 +66,15 @@ impl fmt::Debug for PublicKey {
     }
 }
 
+/// A signature representation
+///
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Signature(DalekSignature);
 
+/// A key pair representation
+///
+/// It can both sign data and verify such signatures.
+///
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct KeyPair(SigningKey);
 
