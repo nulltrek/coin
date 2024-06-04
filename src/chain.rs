@@ -2,7 +2,7 @@ use crate::consensus::ConsensusRules;
 use crate::core::block::Block;
 use crate::core::blockchain::{Blockchain, BlockchainError, Height};
 use crate::core::hash::Hash;
-use crate::core::keys::PublicKey;
+use crate::core::keys::{PublicKey, Verifier};
 use crate::core::transaction::{Output, Transaction};
 use crate::traits::io::{ByteIO, FileIO, JsonIO};
 use crate::utils::*;
@@ -134,6 +134,36 @@ impl Chain {
         self.chain.height()
     }
 
+    pub fn find_all_utxos(&self) -> Vec<Utxo> {
+        self.utxos.get_all()
+    }
+
+    pub fn find_utxos_for_key(&self, pubkey: &PublicKey) -> Vec<Utxo> {
+        self.utxos.get_for_key(pubkey)
+    }
+
+    fn verify_tx_signatures(&self, tx: &Transaction) -> bool {
+        for input in &tx.data.inputs {
+            let idx = input.index as usize;
+            let (_, input_tx) = match self.chain.query_tx(&input.hash) {
+                Some(result) => result,
+                None => return false,
+            };
+
+            if input_tx.data.outputs.len() <= idx {
+                return false;
+            }
+
+            if !input_tx.data.outputs[idx]
+                .pubkey
+                .verify(input_tx.hash.digest(), &input.signature)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /*
      * The genesis block is the first block of the blockchain.
      * It's valid if:
@@ -155,14 +185,6 @@ impl Chain {
             };
     }
 
-    pub fn find_all_utxos(&self) -> Vec<Utxo> {
-        self.utxos.get_all()
-    }
-
-    pub fn find_utxos_for_key(&self, pubkey: &PublicKey) -> Vec<Utxo> {
-        self.utxos.get_for_key(pubkey)
-    }
-
     /*
      * A transaction is valid if:
      * - Its hash is valid
@@ -178,7 +200,7 @@ impl Chain {
         return tx.is_hash_valid()
             && tx.data.inputs.len() > 0
             && tx.data.outputs.len() > 0
-            && verify_tx_signatures(&self.chain, tx)
+            && self.verify_tx_signatures(tx)
             && utxos.is_unspent(tx)
             && match self.chain.get_tx_value(tx) {
                 Some(value) => value.output > 0 && value.input >= value.output,
@@ -421,6 +443,38 @@ mod tests {
         assert!(result.is_ok());
 
         assert!(!chain.utxos.is_unspent(&tx));
+    }
+
+    #[test]
+    fn signature_verification() {
+        let key_1 = KeyPair::new();
+        let key_2 = KeyPair::new();
+
+        let chain = Chain::new(&key_1.public_key());
+        let utxos = chain.find_utxos_for_key(&key_1.public_key());
+
+        let tx = new_tx(
+            &key_1,
+            &utxos,
+            vec![Output {
+                value: 5000,
+                pubkey: key_2.public_key(),
+            }],
+        );
+
+        assert!(chain.verify_tx_signatures(&tx.unwrap()));
+
+        let tx = new_tx(
+            &key_2,
+            &utxos,
+            vec![Output {
+                value: 5000,
+                pubkey: key_2.public_key(),
+            }],
+        )
+        .unwrap();
+
+        assert!(!chain.verify_tx_signatures(&tx));
     }
 
     #[test]

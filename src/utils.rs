@@ -3,7 +3,7 @@ use crate::core::block::{Block, BlockData, Nonce};
 use crate::core::blockchain::Blockchain;
 use crate::core::hash::Hash;
 use crate::core::keys::KeyPair;
-use crate::core::keys::{PublicKey, Verifier};
+use crate::core::keys::PublicKey;
 use crate::core::transaction::{Output, Transaction, TransactionData, Value};
 use crate::traits::io::{DeserializeError, SerializeError};
 use crate::utxo::{IntoInputs, Utxo, UtxoError};
@@ -56,28 +56,6 @@ pub fn new_tx(
         });
     }
     Ok(Transaction::new(TransactionData::new(inputs, outputs)))
-}
-
-pub fn verify_tx_signatures(chain: &Blockchain, tx: &Transaction) -> bool {
-    for input in &tx.data.inputs {
-        let idx = input.index as usize;
-        let (_, input_tx) = match chain.query_tx(&input.hash) {
-            Some(result) => result,
-            None => return false,
-        };
-
-        if input_tx.data.outputs.len() <= idx {
-            return false;
-        }
-
-        if !input_tx.data.outputs[idx]
-            .pubkey
-            .verify(input_tx.hash.digest(), &input.signature)
-        {
-            return false;
-        }
-    }
-    return true;
 }
 
 pub fn new_block(chain: &Chain, nonce: Nonce, transactions: Vec<Transaction>) -> Block {
@@ -146,37 +124,5 @@ mod tests {
         assert_eq!(tx.data.outputs.len(), 1);
         assert_eq!(tx.data.outputs[0].value, 10000);
         assert_eq!(tx.data.outputs[0].pubkey, key_2.public_key());
-    }
-
-    #[test]
-    fn signature_verification() {
-        let key_1 = KeyPair::new();
-        let key_2 = KeyPair::new();
-
-        let chain = Chain::new(&key_1.public_key());
-        let utxos = chain.find_utxos_for_key(&key_1.public_key());
-
-        let tx = new_tx(
-            &key_1,
-            &utxos,
-            vec![Output {
-                value: 5000,
-                pubkey: key_2.public_key(),
-            }],
-        );
-
-        assert!(verify_tx_signatures(&chain.chain, &tx.unwrap()));
-
-        let tx = new_tx(
-            &key_2,
-            &utxos,
-            vec![Output {
-                value: 5000,
-                pubkey: key_2.public_key(),
-            }],
-        )
-        .unwrap();
-
-        assert!(!verify_tx_signatures(&chain.chain, &tx));
     }
 }
