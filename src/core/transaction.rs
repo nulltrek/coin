@@ -1,10 +1,34 @@
+//! The means for exchanging coins between keys/addresses
+//!
+//! A transaction consumes all coins from a previous transaction and
+//! assigns them to a new key/address. Coins are consumed from a previous
+//! transaction and in turn can be spent in another transaction.
+//!
+//! The [inputs](Input) of a transactions represent the unspent coins from
+//! a previous transaction's output. All the coins from the inputs will be consumed.
+//!
+//! Each of the [outputs](Output) of a transaction represent the number of coins to
+//! be assigned to an address.
+//!
+//! Coinbase transactions are special transactions that generate new coins. A coinbase
+//! transaction does not have inputs, only outputs.
+//!
+
 use crate::core::hash::Hash;
 use crate::core::keys::{PublicKey, Signature};
 use crate::traits::io::{ByteIO, FileIO, JsonIO};
 use serde::{Deserialize, Serialize};
 
+/// Utility type for representing coin value
 pub type Value = u64;
 
+/// The input identifies coins to be consumed.
+///
+/// An input points to a transaction through its [hash](struct@Hash), selects
+/// an output of that transaction with its index, and provides a signature
+/// for proving that who is spending the coins is the actual recipient of
+/// the output.
+///
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Input {
     pub hash: Hash,
@@ -12,12 +36,19 @@ pub struct Input {
     pub signature: Signature,
 }
 
+/// An output specifies how many coins to be assigned to a [public key/address](PublicKey).
+///
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Output {
     pub value: Value,
     pub pubkey: PublicKey,
 }
 
+/// The transaction data. It is composed by a list of inputs that will be consumed and
+/// a list of outputs that will receive the consumed coins.
+///
+/// The timestamp is an optional field used only in coinbase transactions (i.e. transactions
+/// which generate new coins).
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct TransactionData {
     pub inputs: Vec<Input>,
@@ -49,6 +80,9 @@ impl TransactionData {
 
 impl ByteIO for TransactionData {}
 
+/// The Transaction struct is a wrapper for the [transaction data](TransactionData), it
+/// computes and stores the hash of its contents.
+///
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Transaction {
     pub hash: Hash,

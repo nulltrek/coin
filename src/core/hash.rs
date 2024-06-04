@@ -21,17 +21,17 @@ impl fmt::Display for HashDeserializeError {
     }
 }
 
-#[derive(Clone, Eq, PartialEq, Hash)]
-pub struct Hash {
-    value: [u8; Hash::SIZE],
-}
-
 /// The hash structure is a 32 byte array representing the SHA256 hash value
 /// of some arbitrary data.
 ///
 /// It provides serialization/deserialization to and from both human readable
 /// and binary formats
 ///
+#[derive(Clone, Eq, PartialEq, Hash)]
+pub struct Hash {
+    value: [u8; Hash::SIZE],
+}
+
 impl Hash {
     const SIZE: usize = 32;
 
