@@ -2,7 +2,8 @@
 //!
 //! Private keys are used for signing transactions, thus verifying ownership of coins.
 //! Public keys are used for verifying the validity of signatures, and they act as
-//! addresses to send coins to.
+//! addresses to send coins to. Public keys can be also seen as address to which coins
+//! can be assigned.
 //!
 
 use crate::traits::io::{ByteIO, DeserializeError, FileIO};
