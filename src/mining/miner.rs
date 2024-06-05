@@ -1,3 +1,7 @@
+//! Implementation of a simple miner whose goal is to build new blocks from the
+//! outstanding transactions and collect fees and rewards into an address.
+//!
+
 use crate::chain::Chain;
 use crate::consensus::Target;
 use crate::core::block::Block;
@@ -10,12 +14,17 @@ use crate::utxo::Utxo;
 use rand::seq::SliceRandom;
 use std::collections::{HashMap, HashSet};
 
+/// Errors that can happen during mining
 #[derive(Debug)]
 pub enum MiningError {
     NotEnoughTransactions,
     NoBlockFound,
 }
 
+/// A miner keeps a PublicKey which will be the recipient of the
+/// transaction fees and rewards, and a pool of outstanding transactions
+/// for constructing blocks
+///
 pub struct Miner {
     recipient: PublicKey,
     pub pool: HashMap<Hash, Transaction>,
@@ -29,6 +38,19 @@ impl Miner {
         }
     }
 
+    /// The main mining function, which tries to collect transactions into a block
+    /// and performs Proof of Work until it reaches the target specified by the
+    /// [consensus rules](crate::consensus::ConsensusRules).
+    ///
+    /// Creating a block involves:
+    /// - selecting some transaction
+    /// - build a block with a starting nonce value
+    /// - hash the block and compare the hash value with the consensus target
+    /// - if the block meets the target, return it; otherwise, incement the nonce and restart
+    ///
+    /// This is a naive implementation of a mining algorithm, it doesn't optimize transaction
+    /// selection for higher fees, nor makes any other smart choice.
+    ///
     pub fn mine(&mut self, chain: &Chain) -> Result<Block, MiningError> {
         println!("Start mining");
         let tx_count: usize = 5;
