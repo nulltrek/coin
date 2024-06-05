@@ -12,6 +12,7 @@ test:
 doc:
 	cargo doc --document-private-items
 
-.PHONY: run-server
-run-server:
-	cargo run --bin server
+.PHONY: build
+build:
+	cargo fmt
+	cargo build
