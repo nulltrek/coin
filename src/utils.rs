@@ -5,20 +5,20 @@ use crate::core::hash::Hash;
 use crate::core::keys::KeyPair;
 use crate::core::keys::PublicKey;
 use crate::core::transaction::{Output, Transaction, TransactionData, Value};
-use crate::traits::io::{DeserializeError, SerializeError};
+use crate::traits::io::IOError;
 use crate::utxo::{IntoInputs, Utxo, UtxoError};
 
-pub fn utxos_to_json(utxos: &Vec<Utxo>) -> Result<String, SerializeError> {
+pub fn utxos_to_json(utxos: &Vec<Utxo>) -> Result<String, IOError> {
     match serde_json::to_string(&utxos) {
         Ok(value) => Ok(value),
-        Err(_) => Err(SerializeError),
+        Err(_) => Err(IOError::SerializationFailed),
     }
 }
 
-pub fn json_to_utxos(json: &str) -> Result<Vec<Utxo>, DeserializeError> {
+pub fn json_to_utxos(json: &str) -> Result<Vec<Utxo>, IOError> {
     match serde_json::from_str(json) {
         Ok(value) => Ok(value),
-        Err(_) => Err(DeserializeError),
+        Err(_) => Err(IOError::DeserializationFailed),
     }
 }
 
