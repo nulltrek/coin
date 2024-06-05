@@ -1,3 +1,20 @@
+//! Simple implementation of a node/miner.
+//!
+//! The two main commands allow users to:
+//! - Create a new chain containing a genesis block, and saving the chain on a file
+//! - Start the node/miner by loading an existing chain from a file
+//!
+//! The node is composed by two parts:
+//! - An HTTP server that allows a minimal set of operation such as querying the
+//!   state of the chain and posting new transactions
+//! - A miner thread that collects the received transactions into blocks and applies
+//!   Proof of Work to generate a new valid entry for the blockchain
+//!
+//! The implementation of the node is very simple and without any kind of optimization.
+//! There is no support for a decentralized infrastructure of independent nodes, talking
+//! and/or collaborating with each other.
+//!
+
 use clap::{Parser, Subcommand};
 use coin::chain::{Chain, SerializableChain};
 use coin::consensus::{ConsensusRules, Halving, Target};

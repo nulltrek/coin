@@ -1,3 +1,17 @@
+//! A simple client/wallet CLI.
+//!
+//! This client can:
+//! - Generate new pairs of public/private keys
+//! - Display a hex string address from a public key
+//! - Fetch the total funds for a public address
+//! - Send some coins from a private key to an address
+//! - Build and send a transaction involving more recipients
+//!
+//! For simplicity, the commands interacting with remote nodes
+//! require specifying the host in a flag. There is no way
+//! to reach out for a decentralized infrastructure of nodes.
+//!
+
 use clap::{Parser, Subcommand};
 use coin::core::keys::{KeyPair, PublicKey};
 use coin::core::transaction::{Output, Value};
