@@ -1,3 +1,8 @@
+//! Specification and implementation of consensus rules
+//!
+//! Consensus is the set of rules that drive the operation of the coin's blockchain.
+//!
+
 use crate::core::blockchain::Height;
 use crate::core::hash::Hash;
 use crate::core::transaction::Value;
@@ -9,6 +14,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::Write;
 use std::fmt::{self, Binary, Formatter};
 
+/// Represents the target value for a [block](crate::core::block::Block)'s hash to be accepted
+/// into the blockchain. This enables the Proof of Work mechanism.
+///
 #[derive(PartialEq, PartialOrd, Clone, Debug)]
 pub struct Target {
     pub value: U256,
@@ -94,6 +102,15 @@ where
     }
 }
 
+/// Define different halving rules that can be instantiated.
+///
+/// The three main categories are:
+/// - No halving: a costant supply of coins can be generated when every block is mined
+/// - Height-based halving: the supply of coins that can be generated in a block gets cut in
+///   half every N blocks mined.
+/// - Infinite: supply of coins is fixed and determined from the start. Coins are only generated
+///   in the genesis block, no other block can generate coins
+///
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Halving {
     None,
@@ -101,6 +118,8 @@ pub enum Halving {
     Inf,
 }
 
+/// Struct used for storing the current consensus
+///
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ConsensusRules {
     pub target: Target,

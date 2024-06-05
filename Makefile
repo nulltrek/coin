@@ -10,7 +10,7 @@ test:
 
 .PHONY: doc
 doc:
-	cargo doc
+	cargo doc --document-private-items
 
 .PHONY: run-server
 run-server:
