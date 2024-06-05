@@ -1,3 +1,6 @@
+//! Utility functions for simple tasks
+//!
+
 use crate::chain::Chain;
 use crate::core::block::{Block, BlockData, Nonce};
 use crate::core::blockchain::Blockchain;
@@ -8,6 +11,8 @@ use crate::core::transaction::{Output, Transaction, TransactionData, Value};
 use crate::traits::io::IOError;
 use crate::utxo::{IntoInputs, Utxo, UtxoError};
 
+/// Serialize a list of [UTXO](Utxo)s into json
+///
 pub fn utxos_to_json(utxos: &Vec<Utxo>) -> Result<String, IOError> {
     match serde_json::to_string(&utxos) {
         Ok(value) => Ok(value),
@@ -15,6 +20,8 @@ pub fn utxos_to_json(utxos: &Vec<Utxo>) -> Result<String, IOError> {
     }
 }
 
+/// Deserialize a JSON list of [UTXO](Utxo)s into a vector
+///
 pub fn json_to_utxos(json: &str) -> Result<Vec<Utxo>, IOError> {
     match serde_json::from_str(json) {
         Ok(value) => Ok(value),
@@ -22,6 +29,8 @@ pub fn json_to_utxos(json: &str) -> Result<Vec<Utxo>, IOError> {
     }
 }
 
+/// Create a new coinbase transaction
+///
 pub fn new_coinbase_tx(pubkey: &PublicKey, value: Value, timestamp: u64) -> Transaction {
     Transaction::new(TransactionData::new_with_timestamp(
         Vec::new(),
@@ -33,6 +42,7 @@ pub fn new_coinbase_tx(pubkey: &PublicKey, value: Value, timestamp: u64) -> Tran
     ))
 }
 
+/// Create a new genesis block by specifying a single public key and a value
 pub fn new_genesis_block(pubkey: &PublicKey, coinbase_value: Value) -> Block {
     Block::new(BlockData::new(
         Hash::default(),
@@ -41,6 +51,8 @@ pub fn new_genesis_block(pubkey: &PublicKey, coinbase_value: Value) -> Block {
     ))
 }
 
+/// Create a new transaction from a private key, a list of utxos and a list of outputs
+///
 pub fn new_tx(
     key: &KeyPair,
     utxos: &[Utxo],
@@ -58,6 +70,8 @@ pub fn new_tx(
     Ok(Transaction::new(TransactionData::new(inputs, outputs)))
 }
 
+/// Create a new block from a nonce and a list of transactions
+///
 pub fn new_block(chain: &Chain, nonce: Nonce, transactions: Vec<Transaction>) -> Block {
     Block::new(BlockData::new(
         chain.get_last_block().hash.clone(),

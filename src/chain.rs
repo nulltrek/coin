@@ -1,3 +1,9 @@
+//! A blockchain implementation that follow consensus rules and validates blocks and transactions
+//!
+//! This chain builds on the base blockchain struct and implements all the validation functions
+//! for making sure no invalid transactions or blocks get added to the list.
+//!
+
 use crate::consensus::ConsensusRules;
 use crate::core::block::Block;
 use crate::core::blockchain::{Blockchain, BlockchainError, Height};
@@ -11,6 +17,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+/// A pool of UTXOs that can be used to track the current unspent outputs.
+/// Provides utility functions for querying the current state of coins that
+/// can be exchanged between addresses.
+///
 #[derive(Debug, Clone)]
 pub struct UtxoPool {
     pub utxos: HashMap<(Hash, u32), Output>,
@@ -78,6 +88,8 @@ impl UtxoPool {
     }
 }
 
+/// Enum for specifying different possible chain operation errors
+///
 #[derive(PartialEq, Debug)]
 pub enum ChainOpError {
     InvalidChain,
@@ -86,6 +98,13 @@ pub enum ChainOpError {
     InvalidPrevHash,
 }
 
+/// A consensus-following, full validating blockchain.
+///
+/// Every block that someone tries to add to the chain is verified for correctness
+/// from the point of view of the consensus rules and the cryptographic soundness.
+///
+/// The chain maintains a pool of current unspent UTXOs for faster validation.
+///
 #[derive(Debug, Clone)]
 pub struct Chain {
     pub rules: ConsensusRules,
@@ -142,6 +161,9 @@ impl Chain {
         self.utxos.get_for_key(pubkey)
     }
 
+    /// Verifies if the signatures provided in all the transaction inputs are actually
+    /// associated to the public keys defined in the referenced outputs.
+    ///
     fn verify_tx_signatures(&self, tx: &Transaction) -> bool {
         for input in &tx.data.inputs {
             let idx = input.index as usize;
@@ -164,16 +186,15 @@ impl Chain {
         return true;
     }
 
-    /*
-     * The genesis block is the first block of the blockchain.
-     * It's valid if:
-     * - The value of prev_hash is all zeroes
-     * - It contains only 1 coinbase transaction
-     * - The transaction has 0 input and at least 1 output
-     * - The value of the tx outputs must be less or equal to the
-     *   base_coins value
-     */
-    pub fn validate_genesis(&self) -> bool {
+    /// The genesis block is the first block of the blockchain.
+    /// It's valid if:
+    /// - The value of prev_hash is all zeroes
+    /// - It contains only 1 coinbase transaction
+    /// - The transaction has 0 input and at least 1 output
+    /// - The value of the tx outputs must be less or equal to the
+    ///   base_coins value
+    ///
+    fn validate_genesis(&self) -> bool {
         let genesis = &self.chain.list[0];
         return genesis.data.prev_hash.is_zero()
             && genesis.data.transactions.len() == 1
@@ -185,17 +206,16 @@ impl Chain {
             };
     }
 
-    /*
-     * A transaction is valid if:
-     * - Its hash is valid
-     * - There is at least 1 input
-     * - There is at least 1 output
-     * - For each input, its signature is valid (using the referenced output pubkey)
-     * - The inputs are unspent
-     * - For each output, its value is greater than zero
-     * - The total input value is greater than or equal to the total ouput value
-     * - It doesn't have a timestamp
-     */
+    /// A transaction is valid if:
+    /// - Its hash is valid
+    /// - There is at least 1 input
+    /// - There is at least 1 output
+    /// - For each input, its signature is valid (using the referenced output pubkey)
+    /// - The inputs are unspent
+    /// - For each output, its value is greater than zero
+    /// - The total input value is greater than or equal to the total ouput value
+    /// - It doesn't have a timestamp
+    ///
     fn validate_tx(&self, tx: &Transaction, utxos: &UtxoPool) -> bool {
         return tx.is_hash_valid()
             && tx.data.inputs.len() > 0
@@ -209,18 +229,19 @@ impl Chain {
             && tx.data.timestamp.is_none();
     }
 
+    /// Validates a transaction using the current UTXO pool as base
+    ///
     pub fn validate_new_tx(&self, tx: &Transaction) -> bool {
         self.validate_tx(tx, &self.utxos)
     }
 
-    /*
-     * A coinbase transaction is valid on a collection of transactions if:
-     * - Its hash is valid
-     * - There are no inputs
-     * - There is at least 1 output
-     * - The coinbase transaction timestamp must be equal to the provided block height
-     * - The total output value is less than or equal to the consensus reward + fees on the tx collection
-     */
+    /// A coinbase transaction is valid on a collection of transactions if:
+    /// - Its hash is valid
+    /// - There are no inputs
+    /// - There is at least 1 output
+    /// - The coinbase transaction timestamp must be equal to the provided block height
+    /// - The total output value is less than or equal to the consensus reward + fees on the tx collection
+    ///
     fn validate_coinbase_tx(
         &self,
         prev_block_hash: &Hash,
@@ -256,12 +277,11 @@ impl Chain {
             };
     }
 
-    /*
-     * The order of transactions in a block matters. The same utxo cannot be
-     * spent twice in the same transaction and there cannot be two or more
-     * transactions in a block which spend the same utxo. This function checks
-     * for double spends in a list of transactions.
-     */
+    /// The order of transactions in a block matters. The same utxo cannot be
+    /// spent twice in the same transaction and there cannot be two or more
+    /// transactions in a block which spend the same utxo. This function checks
+    /// for double spends in a list of transactions.
+    ///
     fn validate_double_spend(&self, transactions: &[Transaction]) -> bool {
         let mut inputs = HashSet::<(Hash, u32)>::new();
         for tx in transactions {
@@ -276,16 +296,15 @@ impl Chain {
         return true;
     }
 
-    /*
-     * A block is valid if:
-     * - Its hash is valid
-     * - The block points to the previous block
-     * - There is at least one transaction
-     * - If there is only one transaction, it's a regular transaction
-     * - The top hash is valid
-     * - All the transactions except the last one are valid regular transactions
-     * - The last transaction is a valid coinbase transaction or a valid regular transaction
-     */
+    /// A block is valid if:
+    /// - Its hash is valid
+    /// - The block points to the previous block
+    /// - There is at least one transaction
+    /// - If there is only one transaction, it's a regular transaction
+    /// - The top hash is valid
+    /// - All the transactions except the last one are valid regular transactions
+    /// - The last transaction is a valid coinbase transaction or a valid regular transaction
+    ///
     fn validate_block(&self, block: &Block, previous: &Block, utxos: &UtxoPool) -> bool {
         return block.is_hash_valid()
             && block.data.prev_hash == previous.hash
@@ -306,15 +325,16 @@ impl Chain {
             && self.validate_double_spend(&block.data.transactions);
     }
 
+    /// Validates a block using the current last block and UTXO pool as base
+    ///
     pub fn validate_new_block(&self, block: &Block) -> bool {
         self.validate_block(block, self.chain.get_last_block(), &self.utxos)
     }
 
-    /*
-     * A chain is valid if:
-     * - The genesis block is valid
-     * - All the remaining blocks are valid
-     */
+    /// A chain is valid if:
+    /// - The genesis block is valid
+    /// - All the remaining blocks are valid
+    ///
     pub fn validate_chain(&self) -> bool {
         let mut utxos = UtxoPool::default();
         utxos.update(&self.chain.list[0]);
@@ -329,11 +349,10 @@ impl Chain {
                 });
     }
 
-    /*
-     * A block can be added to the blockchain if:
-     * - Its hash satisfies the consensus target
-     * - It's a valid block
-     */
+    /// A block can be added to the blockchain if:
+    /// - Its hash satisfies the consensus target
+    /// - It's a valid block
+    ///
     pub fn add_block(&mut self, block: Block) -> Result<Height, ChainOpError> {
         if !self.rules.validate_target(&block.hash) {
             return Err(ChainOpError::TargetNotSatisfied);
@@ -353,6 +372,8 @@ impl Chain {
     }
 }
 
+/// Helper struct for serializing and deserializing a [chain](Chain)
+///
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SerializableChain {
     pub rules: ConsensusRules,
