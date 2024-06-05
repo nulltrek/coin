@@ -6,7 +6,7 @@
 //! can be assigned.
 //!
 
-use crate::traits::io::{ByteIO, DeserializeError, FileIO};
+use crate::traits::io::{ByteIO, FileIO, IOError};
 use ed25519_dalek::{
     Signature as DalekSignature, Signer, SigningKey, Verifier as DalekVerifier, VerifyingKey,
     PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH,
@@ -110,14 +110,14 @@ impl Verifier for KeyPair {
 }
 
 impl ByteIO for KeyPair {
-    fn from_bytes(bytes: &[u8]) -> Result<KeyPair, DeserializeError> {
+    fn from_bytes(bytes: &[u8]) -> Result<KeyPair, IOError> {
         if bytes.len() != 32 {
-            return Err(DeserializeError);
+            return Err(IOError::DeserializationFailed);
         }
         let result: Result<&[u8; 32], core::array::TryFromSliceError> = bytes.try_into();
         match result {
             Ok(slice) => Ok(KeyPair(SigningKey::from_bytes(slice))),
-            Err(_) => Err(DeserializeError),
+            Err(_) => Err(IOError::DeserializationFailed),
         }
     }
 
